@@ -1,0 +1,52 @@
+{
+  "name": "vhttp",
+  "version": "1.0.0",
+  "description": "Simple substitution for Node.js",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha test/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nordstrom/vhttp.git"
+  },
+  "files": [
+    "index.js",
+    "LICENSE",
+    "README.md"
+  ],
+  "keywords": [
+    "http",
+    "https",
+    "request",
+    "request-promise",
+    "virtual",
+    "virtualize",
+    "mock",
+    "mocks",
+    "stub",
+    "stubs"
+  ],
+  "author": "Andy Day (andyday)",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Nordstrom/vhttp/issues"
+  },
+  "homepage": "https://github.com/Nordstrom/vhttp#readme",
+  "devDependencies": {
+    "babel-cli": "^6.10.1",
+    "babel-preset-es2015": "^6.9.0",
+    "mocha": "^2.5.3",
+    "rollup": "^0.34.1",
+    "should": "^9.0.2"
+  },
+  "dependencies": {
+    "bluebird": "^3.4.1",
+    "glob": "^7.0.5",
+    "lodash": "^4.13.1",
+    "request-promise": "^3.0.0",
+    "smart-eql": "^0.2.0",
+    "substituter": "^1.0.1",
+    "xml2js": "^0.4.17"
+  }
+}

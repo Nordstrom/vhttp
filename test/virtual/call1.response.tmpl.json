@@ -1,0 +1,4 @@
+{
+    "name": "call1",
+    "param": "${params.param}"
+}
