@@ -22,7 +22,7 @@ var _ = require('lodash'),
             console.log('SENT%s: %s %s [%s ms]', opts.virtual ? ' [' + opts.virtual + ']' : '', opts.method, opts.uri, (Date.now() - opts.timestamp));
         },
         error: function (opts, err) {
-            console.log('ERROR: %s %s [%s ms]:', opts.method, opts.uri, (Date.now() - opts.timestamp), (err.error || err), err.error ? err : undefined);
+            console.log('ERROR: %s %s [%s ms]:', opts.method, opts.uri, (Date.now() - opts.timestamp), (err.error || err));
         }
     },
     _root = path.resolve(__dirname + '/virtual'),
@@ -56,6 +56,7 @@ function initCall(call) {
             method: value.method
         },
         response = {
+            status: value.status,
             delay: value.delay
         };
 
@@ -105,7 +106,7 @@ function renderBody(obj) {
 }
 
 function render(scenario) {
-    if (!scenario) return scenario;
+    if (!scenario) return Promise.reject(new Error('No scenario'));
     return Promise.map(scenario, function (item) {
         let call = item.value;
         if (!call.request || !call.response) {
@@ -179,8 +180,8 @@ class Vhttp {
                     log.error(opts, {
                         error: new Error(
                             'Bodies do not match for ' + method + ':' + uri +
-                            '\nEXPECTED\n' + req.body +
-                            '\nACTUAL\n' + opts.body)
+                            '\nEXPECTED\n' + JSON.stringify(req.body) +
+                            '\nACTUAL\n' + JSON.stringify(opts.body))
                     });
                     return false;
                 }
@@ -199,6 +200,7 @@ class Vhttp {
                 delay = call.response.delay || 0,
                 body = call.response.body;
 
+            console.log('status', status);
             if (!status || /^2/.test(status)) {
                 return Promise
                     .delay(delay)
