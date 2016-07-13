@@ -3,8 +3,8 @@
 var should = require('should'),
     fs = require('fs'),
     nock = require('nock'),
-    Vhttp = require('..');
-
+    Vhttp = require('..'),
+    it = require('mocha').it;
 
 before(function () {
     nock.cleanAll();
@@ -55,6 +55,20 @@ before(function () {
                 uri: 'http://test.url/path3',
                 status: 200
             }
+        },
+        scenario3: {
+            'call1:1': {
+                method: 'get',
+                uri: 'http://test.url/path'
+            },
+            'call2:1': {
+                method: 'post',
+                uri: 'http://test.url/path2'
+            },
+            'call3:1': {
+                method: 'put',
+                uri: 'http://test.url/path3'
+            }
         }
     });
 });
@@ -71,6 +85,7 @@ it('virtualizes get json with data', function () {
 });
 
 it('virtualizes post json without data', function () {
+    //noinspection JSUnresolvedFunction
     return new Vhttp('scenario1')
         .post('http://test.url/path2', { body: { name: 'call2', param: 'request-param' } })
         .then(function (data) {
@@ -93,6 +108,7 @@ it('virtualizes get json with error', function () {
 });
 
 it('virtualizes put xml with data', function () {
+    //noinspection JSUnresolvedFunction
     return new Vhttp('scenario1')
         .put('http://test.url/path3', { body: '<request><name>call3</name><param>call3-request-param</param></request>' })
         .then(function (data) {
@@ -101,6 +117,7 @@ it('virtualizes put xml with data', function () {
 });
 
 it('virtualizes post json with regex', function () {
+    //noinspection JSUnresolvedFunction
     return new Vhttp('scenario1')
         .post('http://test.url/path4', { body: { name: 'call4', param: 'call4 request param' } })
         .then(function (data) {
@@ -112,6 +129,7 @@ it('virtualizes post json with regex', function () {
 });
 
 it('virtualizes post xml with regex', function () {
+    //noinspection JSUnresolvedFunction
     return new Vhttp('scenario2')
         .post('http://test.url/path3', { body: '<request><name>call3</name><param>call3 regex request param</param></request>' })
         .then(function (data) {
@@ -120,6 +138,7 @@ it('virtualizes post xml with regex', function () {
 });
 
 it('virtualizes post json with data functions', function () {
+    //noinspection JSUnresolvedFunction
     return new Vhttp('scenario1')
         .post('http://test.url/path5', { body: { name: 'call5', param: 'call5 request param' } })
         .then(function (data) {
@@ -131,6 +150,7 @@ it('virtualizes post json with data functions', function () {
 });
 
 it('virtualizes post xml with data functions', function () {
+    //noinspection JSUnresolvedFunction
     return new Vhttp('scenario1')
         .post('http://test.url/path7', { body: '<request><name>call7</name><param>call7 request param</param></request>' })
         .then(function (data) {
@@ -139,6 +159,7 @@ it('virtualizes post xml with data functions', function () {
 });
 
 it('virtualizes post xml with no data', function () {
+    //noinspection JSUnresolvedFunction
     return new Vhttp('scenario1')
         .post('http://test.url/path6', { body: '<request><name>call6</name><param>call6 request param</param></request>' })
         .then(function (data) {
@@ -169,6 +190,7 @@ it('errs on invalid path', function () {
 });
 
 it('errs on invalid body', function () {
+    //noinspection JSUnresolvedFunction
     return new Vhttp('scenario1')
         .post('http://test.url/path6', { body: '<request><name>callX</name><param>call6 request param</param></request>' })
         .then(function () {
@@ -181,10 +203,10 @@ it('errs on invalid body', function () {
 
 it('posts to real endpoint with success', function () {
     var scope = nock('http://test-real.url:80')
-    // .log(console.log)
         .post('/path', { name: 'real-request' })
         .reply(200, { name: 'real-response' });
 
+    //noinspection JSUnresolvedFunction
     return new Vhttp()
         .post('http://test-real.url/path', { body: { name: 'real-request' }, json: true })
         .then(function (data) {
@@ -199,6 +221,7 @@ it('posts to real endpoint with error', function () {
         .post('/path', { name: 'real-request' })
         .reply(400, { name: 'error-response' });
 
+    //noinspection JSUnresolvedFunction
     return new Vhttp()
         .post('http://test-real.url/path', { body: { name: 'real-request' }, json: true })
         .then(function () {
@@ -207,5 +230,30 @@ it('posts to real endpoint with error', function () {
         .catch(function (err) {
             err.error.should.eql({ name: 'error-response' });
             scope.done();
-        })
+        });
+});
+
+it('checks that all calls were made', function () {
+    let vhttp = new Vhttp('scenario3');
+
+    //noinspection JSUnresolvedFunction
+    return Promise.all([
+        vhttp.get('http://test.url/path'),
+        vhttp.post('http://test.url/path2', { body: { name: 'call2', param: 'request-param' } }),
+        vhttp.put('http://test.url/path3', { body: '<request><name>call3</name><param>call3-request-param</param></request>' })
+    ])
+        .then(function () {
+            return vhttp.done().should.be.fulfilled();
+        });
+});
+
+it('errs when all calls not made', function () {
+    let vhttp = new Vhttp('scenario3');
+
+    //noinspection JSUnresolvedFunction
+    return vhttp.get('http://test.url/path')
+        .then(function () {
+            return vhttp.done().should.be.rejectedWith(Error,
+                { message: 'The following calls for scenario scenario3 were not made: call2:1, call3:1' });
+        });
 });

@@ -134,24 +134,95 @@ function render(scenario) {
     });
 }
 
+function prepareBody(opts) {
+    return _.isString(opts.body)
+        ? fromXml(opts.body)
+        : Promise.resolve(opts.body);
+}
 
 class Vhttp {
     constructor(virtual) {
         this.virtual = virtual;
     }
 
-    prepare(opts) {
-        return Promise.all([
-            render(_scenarios[this.virtual]),
-            _.isString(opts.body)
-                ? fromXml(opts.body)
-                : Promise.resolve(opts.body)
-        ]).then(function (results) {
-            return {
-                scenario: results[0],
-                body: results[1]
-            };
+    init() {
+        let self = this;
+        if (this.scenario) return Promise.resolve();
+        return (render(_scenarios[this.virtual]) || Promise.resolve())
+            .then(function (scenario) {
+                self.scenario = self.scenario || scenario;
+            });
+    }
+
+    _findCall(opts) {
+        return _.find(this.scenario, function (item) {
+            let call = item.value,
+                callReq = call.request;
+            if (!call._initialized) {
+                callReq.method = callReq.method.toUpperCase();
+                callReq.uri = callReq.uri.toLowerCase();
+                call._initialized = true;
+            }
+            if (opts.method !== callReq.method) return false;
+            if (opts.uri !== callReq.uri) return false;
+            if (!eql(opts.preparedBody, callReq.body)) {
+                _log.error(opts, {
+                    error: new Error(
+                        'Bodies do not match for ' + opts.method + ':' + opts.uri +
+                        '\nEXPECTED\n' + JSON.stringify(callReq.body) +
+                        '\nACTUAL\n' + JSON.stringify(opts.preparedBody))
+                });
+                return false;
+            }
+
+            return true;
         });
+    }
+
+    _sendReal(opts) {
+        return request(opts)
+            .then(function (data) {
+                _log.sent(opts);
+                return data;
+            })
+            .catch(function (err) {
+                _log.error(opts, err);
+                throw err;
+            });
+    }
+
+    _sendVirtual(opts) {
+        let call = this._findCall(opts);
+
+        if (!call) {
+            let err = new Error('No virtual ' + this.virtual + ' call found for ' + opts.method + ':' + opts.uri);
+            _log.error(opts, { error: err });
+            throw err;
+        }
+
+        call._called = true;
+        call = call.value;
+
+        let status = call.response.status || 200,
+            delay = call.response.delay || 0,
+            responseBody = call.response.body;
+
+        if (!status || /^2/.test(status)) {
+            return Promise
+                .delay(delay)
+                .then(function () {
+                    _log.sent(opts);
+                    return responseBody;
+                });
+        }
+
+        return Promise
+            .delay(delay)
+            .then(function () {
+                _log.error(opts, { error: responseBody });
+                return Promise.reject({ error: responseBody });
+            });
+
     }
 
     send(opts) {
@@ -162,83 +233,35 @@ class Vhttp {
             method = opts.method.toUpperCase(),
             uri = opts.uri.toLowerCase();
 
-        return this.prepare(opts).then(function (prepared) {
-            let scenario = prepared.scenario,
-                requestBody = prepared.body;
-
-            if (self.virtual && !scenario) {
-                let err = new Error('No virtual ' + virtual + ' scenario found for ' + method + ':' + uri);
-                _log.error(opts, { error: err });
-                throw err;
-            }
-
-            self.scenario = scenario;
-            opts.virtual = virtual;
-
-            _log.send(opts);
-
-            if (!scenario) {
-                return request(opts)
-                    .then(function (data) {
-                        _log.sent(opts);
-                        return data;
-                    })
-                    .catch(function (err) {
-                        _log.error(opts, err);
-                        throw err;
-                    });
-            }
-
-            let call = _.find(scenario, function (item) {
-                let call = item.value,
-                    req = call.request;
-                if (!call._initialized) {
-                    req.method = req.method.toUpperCase();
-                    req.uri = req.uri.toLowerCase();
-                    call._initialized = true;
-                }
-                if (method !== req.method) return false;
-                if (uri !== req.uri) return false;
-                if (!eql(requestBody, req.body)) {
-                    _log.error(opts, {
-                        error: new Error(
-                            'Bodies do not match for ' + method + ':' + uri +
-                            '\nEXPECTED\n' + JSON.stringify(req.body) +
-                            '\nACTUAL\n' + JSON.stringify(requestBody))
-                    });
-                    return false;
+        return this.init().then(function () {
+            return prepareBody(opts).then(function (body) {
+                if (self.virtual && !self.scenario) {
+                    let err = new Error('No virtual ' + virtual + ' scenario found for ' + method + ':' + uri);
+                    _log.error(opts, { error: err });
+                    throw err;
                 }
 
-                return true;
+                opts.preparedBody = body;
+                opts.virtual = virtual;
+
+                _log.send(opts);
+
+                return self.scenario
+                    ? self._sendVirtual(opts)
+                    : self._sendReal(opts);
             });
-
-            if (!call) {
-                let err = new Error('No virtual ' + virtual + ' call found for ' + opts.method + ':' + opts.uri);
-                _log.error(opts, { error: err });
-                throw err;
-            }
-
-            call = call.value;
-            let status = call.response.status || 200,
-                delay = call.response.delay || 0,
-                responseBody = call.response.body;
-
-            if (!status || /^2/.test(status)) {
-                return Promise
-                    .delay(delay)
-                    .then(function () {
-                        _log.sent(opts);
-                        return responseBody;
-                    });
-            }
-
-            return Promise
-                .delay(delay)
-                .then(function () {
-                    _log.error(opts, { error: responseBody });
-                    return Promise.reject({ error: responseBody });
-                });
         });
+    }
+
+    done() {
+        var notCalled = _.filter(this.scenario, function (o) { return !o._called; });
+
+        if (notCalled.length > 0) {
+            let callErrors = _.map(notCalled, 'key');
+            return Promise.reject(new Error('The following calls for scenario ' + this.virtual + ' were not made: ' + callErrors.join(', ')));
+        }
+
+        return Promise.resolve();
     }
 
     static configure(opts) {
