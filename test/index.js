@@ -15,19 +15,19 @@ before(function () {
     });
     Vhttp.register({
         scenario1: {
-            'call1-1': {
+            'call1:1': {
                 method: 'get',
                 uri: 'http://test.url/path'
             },
-            'call2-1': {
+            'call2:1': {
                 method: 'post',
                 uri: 'http://test.url/path2'
             },
-            'call3-1': {
+            'call3:1': {
                 method: 'put',
                 uri: 'http://test.url/path3'
             },
-            'call4-1': {
+            'call4:1': {
                 method: 'post',
                 uri: 'http://test.url/path4'
             },
@@ -45,12 +45,12 @@ before(function () {
             }
         },
         scenario2: {
-            'call1-2': {
+            'call1:2': {
                 method: 'get',
                 uri: 'http://test.url/path',
                 status: 400
             },
-            'call3-2': {
+            'call3:2': {
                 method: 'post',
                 uri: 'http://test.url/path3',
                 status: 200

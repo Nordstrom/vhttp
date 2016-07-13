@@ -39,7 +39,7 @@ var _ = require('lodash'),
 function initCall(call) {
     let key = call[0],
         value = call[1],
-        parts = key.split('-'),
+        parts = key.split(':'),
         name = parts[0],
         num = parts[1],
 
