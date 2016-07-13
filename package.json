@@ -46,7 +46,7 @@
     "lodash": "^4.13.1",
     "request-promise": "^3.0.0",
     "smart-eql": "^0.2.0",
-    "substituter": "^1.0.1",
+    "substituter": "^1.2.0",
     "xml2js": "^0.4.17"
   }
 }

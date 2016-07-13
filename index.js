@@ -9,7 +9,9 @@ var _ = require('lodash'),
     Promise = require('bluebird'),
     glob = Promise.promisify(require('glob')),
     readFile = Promise.promisify(require('fs').readFile),
-    fromXml = require('xml2js').parseString,
+    XmlParser = require('xml2js').Parser,
+    xmlParser = Promise.promisifyAll(new XmlParser({ explicitRoot: true, explicitArray: false, mergeAttrs: true })),
+    fromXml = xmlParser.parseStringAsync,
     path = require('path'),
     sub = require('substituter'),
     eql = require('smart-eql'),
@@ -35,10 +37,10 @@ function readJson(file) {
         });
 }
 
-function readXml(file) {
+function readXml(file, raw) {
     return readFile(file, 'utf8')
-        .then(function (data) {
-            return fromXml(data);
+        .then(function (xml) {
+            return raw ? xml.toString() : fromXml(xml);
         });
 }
 
@@ -86,20 +88,26 @@ function initScenario(scenario) {
     return [key, calls];
 }
 
-function renderBody(obj) {
+function renderBody(obj, raw) {
     if (obj.json) return readJson(obj.json);
 
     if (obj.templateJson) {
         return readFile(obj.templateJson, 'utf8').then(function (tmpl) {
-            return JSON.parse(sub(tmpl, obj.data));
+            var s = sub(JSON.parse(tmpl), obj.data);
+            return s;
         });
     }
     if (obj.xml) return readXml(obj.xml);
 
     if (obj.templateXml) {
-        return readFile(obj.templateXml, 'utf8').then(function (tmpl) {
-            return fromXml(sub(tmpl, obj.data));
-        });
+        return readFile(obj.templateXml, 'utf8').then(function (xml) {
+                return raw
+                    ? sub(xml, obj.data)
+                    : fromXml(xml).then(function (xmlObj) {
+                    return sub(xmlObj, obj.data);
+                });
+            }
+        );
     }
 
     return Promise.resolve();
@@ -114,7 +122,7 @@ function render(scenario) {
         }
         return Promise.all([
             renderBody(call.request),
-            renderBody(call.response)
+            renderBody(call.response, true)
         ]).then(function (results) {
             return _.merge({}, item, {
                 value: {
@@ -126,9 +134,29 @@ function render(scenario) {
     });
 }
 
+
 class Vhttp {
     constructor(virtual) {
         this.virtual = virtual;
+    }
+
+    prepare(opts) {
+        return Promise.all([
+            this.virtual && !this.scenario
+                ? render(_scenarios[this.virtual])
+                : Promise.resolve(this.scenario),
+            _.isString(opts.body)
+                ? fromXml(opts.body)
+                .catch(function () {
+                    return opts.body;
+                })
+                : Promise.resolve(opts.body)
+        ]).then(function (results) {
+            return {
+                scenario: results[0],
+                body: results[1]
+            };
+        });
     }
 
     send(opts) {
@@ -137,12 +165,12 @@ class Vhttp {
         let self = this,
             virtual = this.virtual,
             method = opts.method.toUpperCase(),
-            uri = opts.uri.toLowerCase(),
-            promise = this.virtual && !this.scenario
-                ? render(_scenarios[this.virtual])
-                : Promise.resolve(this.scenario);
+            uri = opts.uri.toLowerCase();
 
-        return promise.then(function (scenario) {
+        return this.prepare(opts).then(function (prepared) {
+            let scenario = prepared.scenario,
+                requestBody = prepared.body;
+
             if (self.virtual && !scenario) {
                 let err = new Error('No virtual ' + virtual + ' scenario found for ' + method + ':' + uri);
                 log.error(opts, { error: err });
@@ -176,12 +204,12 @@ class Vhttp {
                 }
                 if (method !== req.method) return false;
                 if (uri !== req.uri) return false;
-                if (!eql(opts.body, req.body)) {
+                if (!eql(requestBody, req.body)) {
                     log.error(opts, {
                         error: new Error(
                             'Bodies do not match for ' + method + ':' + uri +
                             '\nEXPECTED\n' + JSON.stringify(req.body) +
-                            '\nACTUAL\n' + JSON.stringify(opts.body))
+                            '\nACTUAL\n' + JSON.stringify(requestBody))
                     });
                     return false;
                 }
@@ -198,7 +226,7 @@ class Vhttp {
             call = call.value;
             let status = call.response.status || 200,
                 delay = call.response.delay || 0,
-                body = call.response.body;
+                responseBody = call.response.body;
 
             console.log('status', status);
             if (!status || /^2/.test(status)) {
@@ -206,15 +234,15 @@ class Vhttp {
                     .delay(delay)
                     .then(function () {
                         log.sent(opts);
-                        return body;
+                        return responseBody;
                     });
             }
 
             return Promise
                 .delay(delay)
                 .then(function () {
-                    log.error(opts, { error: body });
-                    return Promise.reject({ error: body });
+                    log.error(opts, { error: responseBody });
+                    return Promise.reject({ error: responseBody });
                 });
         });
     }
@@ -233,8 +261,7 @@ class Vhttp {
         )(scenarios);
     }
 
-    static
-    reset() {
+    static reset() {
         _scenarios = {};
     }
 }

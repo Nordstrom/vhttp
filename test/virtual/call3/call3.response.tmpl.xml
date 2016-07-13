@@ -1,0 +1,4 @@
+<response>
+    <name>call3</name>
+    <param>${param}</param>
+</response>
