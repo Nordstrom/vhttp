@@ -1,10 +1,11 @@
 {
   "name": "vhttp",
-  "version": "1.0.0",
-  "description": "Simple substitution for Node.js",
+  "version": "0.5.0",
+  "description": "Promise based Node.js HTTP/HTTPS client with optional virtualization.",
   "main": "index.js",
   "scripts": {
-    "test": "mocha test/index.js"
+    "test": "istanbul test _mocha",
+    "tdd": "mocha -w"
   },
   "repository": {
     "type": "git",
@@ -34,9 +35,9 @@
   },
   "homepage": "https://github.com/Nordstrom/vhttp#readme",
   "devDependencies": {
-    "babel-cli": "^6.10.1",
-    "babel-preset-es2015": "^6.9.0",
+    "istanbul": "^0.4.4",
     "mocha": "^2.5.3",
+    "nock": "^8.0.0",
     "rollup": "^0.34.1",
     "should": "^9.0.2"
   },

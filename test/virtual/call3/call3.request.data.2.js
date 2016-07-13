@@ -1,3 +1,3 @@
 module.exports = {
-    param: /c.ll\d request param/
+    param: /c.ll\d regex request param/
 };

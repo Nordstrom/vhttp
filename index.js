@@ -16,7 +16,7 @@ var _ = require('lodash'),
     sub = require('substituter'),
     eql = require('smart-eql'),
     request = require('request-promise'),
-    log = {
+    _defaultLog = {
         send: function (opts) {
             console.log('SEND%s: %s %s', opts.virtual ? ' [' + opts.virtual + ']' : '', opts.method, opts.uri)
         },
@@ -27,22 +27,14 @@ var _ = require('lodash'),
             console.log('ERROR: %s %s [%s ms]:', opts.method, opts.uri, (Date.now() - opts.timestamp), (err.error || err));
         }
     },
+    _quietLog = {
+        send: _.noop,
+        sent: _.noop,
+        error: _.noop
+    },
+    _log = _defaultLog,
     _root = path.resolve(__dirname + '/virtual'),
     _scenarios = {};
-
-function readJson(file) {
-    return readFile(file, 'utf8')
-        .then(function (data) {
-            return JSON.parse(data);
-        });
-}
-
-function readXml(file, raw) {
-    return readFile(file, 'utf8')
-        .then(function (xml) {
-            return raw ? xml.toString() : fromXml(xml);
-        });
-}
 
 function initCall(call) {
     let key = call[0],
@@ -68,11 +60,13 @@ function initCall(call) {
         else if (_.endsWith(file, '.request.tmpl.json')) request.templateJson = file;
         else if (_.endsWith(file, '.request.tmpl.xml')) request.templateXml = file;
         else if (_.endsWith(file, `.request.data.${num}.js`)) request.data = require(file);
+        else if (_.endsWith(file, '.request.data.js')) request.data = request.data || require(file);
         else if (_.endsWith(file, '.response.json')) response.json = file;
         else if (_.endsWith(file, '.response.xml')) response.xml = file;
         else if (_.endsWith(file, '.response.tmpl.json')) response.templateJson = file;
         else if (_.endsWith(file, '.response.tmpl.xml')) response.templateXml = file;
         else if (_.endsWith(file, `.response.data.${num}.js`)) response.data = require(file);
+        else if (_.endsWith(file, '.response.data.js')) response.data = response.data || require(file);
     });
 
     return { key: key, value: { request, response } };
@@ -89,22 +83,31 @@ function initScenario(scenario) {
 }
 
 function renderBody(obj, raw) {
-    if (obj.json) return readJson(obj.json);
+    if (obj.json) {
+        return readFile(obj.json, 'utf8')
+            .then(function (data) {
+                return JSON.parse(data);
+            });
+    }
 
     if (obj.templateJson) {
         return readFile(obj.templateJson, 'utf8').then(function (tmpl) {
-            var s = sub(JSON.parse(tmpl), obj.data);
-            return s;
+            return sub(JSON.parse(tmpl), _.isFunction(obj.data) ? obj.data() : obj.data);
         });
     }
-    if (obj.xml) return readXml(obj.xml);
+    if (obj.xml) {
+        return readFile(obj.xml, 'utf8')
+            .then(function (xml) {
+                return raw ? xml.toString() : fromXml(xml);
+            });
+    }
 
     if (obj.templateXml) {
         return readFile(obj.templateXml, 'utf8').then(function (xml) {
                 return raw
-                    ? sub(xml, obj.data)
+                    ? sub(xml, _.isFunction(obj.data) ? obj.data() : obj.data)
                     : fromXml(xml).then(function (xmlObj) {
-                    return sub(xmlObj, obj.data);
+                    return sub(xmlObj, _.isFunction(obj.data) ? obj.data() : obj.data);
                 });
             }
         );
@@ -114,12 +117,9 @@ function renderBody(obj, raw) {
 }
 
 function render(scenario) {
-    if (!scenario) return Promise.reject(new Error('No scenario'));
+    if (!scenario) return scenario;
     return Promise.map(scenario, function (item) {
         let call = item.value;
-        if (!call.request || !call.response) {
-            return;
-        }
         return Promise.all([
             renderBody(call.request),
             renderBody(call.response, true)
@@ -142,14 +142,9 @@ class Vhttp {
 
     prepare(opts) {
         return Promise.all([
-            this.virtual && !this.scenario
-                ? render(_scenarios[this.virtual])
-                : Promise.resolve(this.scenario),
+            render(_scenarios[this.virtual]),
             _.isString(opts.body)
                 ? fromXml(opts.body)
-                .catch(function () {
-                    return opts.body;
-                })
                 : Promise.resolve(opts.body)
         ]).then(function (results) {
             return {
@@ -173,25 +168,25 @@ class Vhttp {
 
             if (self.virtual && !scenario) {
                 let err = new Error('No virtual ' + virtual + ' scenario found for ' + method + ':' + uri);
-                log.error(opts, { error: err });
+                _log.error(opts, { error: err });
                 throw err;
             }
 
             self.scenario = scenario;
             opts.virtual = virtual;
 
-            log.send(opts);
+            _log.send(opts);
 
             if (!scenario) {
                 return request(opts)
                     .then(function (data) {
-                        log.sent(opts);
+                        _log.sent(opts);
                         return data;
+                    })
+                    .catch(function (err) {
+                        _log.error(opts, err);
+                        throw err;
                     });
-                // .catch(function (err) {
-                //     log.error(opts, err);
-                //     throw (err.error || err);
-                // });
             }
 
             let call = _.find(scenario, function (item) {
@@ -205,7 +200,7 @@ class Vhttp {
                 if (method !== req.method) return false;
                 if (uri !== req.uri) return false;
                 if (!eql(requestBody, req.body)) {
-                    log.error(opts, {
+                    _log.error(opts, {
                         error: new Error(
                             'Bodies do not match for ' + method + ':' + uri +
                             '\nEXPECTED\n' + JSON.stringify(req.body) +
@@ -219,7 +214,7 @@ class Vhttp {
 
             if (!call) {
                 let err = new Error('No virtual ' + virtual + ' call found for ' + opts.method + ':' + opts.uri);
-                log.error(opts, { error: err });
+                _log.error(opts, { error: err });
                 throw err;
             }
 
@@ -228,12 +223,11 @@ class Vhttp {
                 delay = call.response.delay || 0,
                 responseBody = call.response.body;
 
-            console.log('status', status);
             if (!status || /^2/.test(status)) {
                 return Promise
                     .delay(delay)
                     .then(function () {
-                        log.sent(opts);
+                        _log.sent(opts);
                         return responseBody;
                     });
             }
@@ -241,7 +235,7 @@ class Vhttp {
             return Promise
                 .delay(delay)
                 .then(function () {
-                    log.error(opts, { error: responseBody });
+                    _log.error(opts, { error: responseBody });
                     return Promise.reject({ error: responseBody });
                 });
         });
@@ -249,6 +243,8 @@ class Vhttp {
 
     static configure(opts) {
         _root = path.resolve(opts.root || _root);
+        if (opts.quiet) _log = _quietLog;
+        if (opts.log) _log = _.assign({}, _defaultLog, opts.log);
         return this.register(opts.scenarios);
     }
 

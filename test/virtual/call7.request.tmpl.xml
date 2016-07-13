@@ -1,0 +1,4 @@
+<request>
+    <name>call7</name>
+    <param>${param}</param>
+</request>
