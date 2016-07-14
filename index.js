@@ -24,13 +24,17 @@ var _ = require('lodash'),
             console.log('SENT%s: %s %s [%s ms]', opts.virtual ? ' [' + opts.virtual + ']' : '', opts.method, opts.uri, (Date.now() - opts.timestamp));
         },
         error: function (opts, err) {
-            console.log('ERROR: %s %s [%s ms]:', opts.method, opts.uri, (Date.now() - opts.timestamp), (err.error || err));
+            console.log('ERROR%s: %s %s [%s ms]:', opts.virtual ? ' [' + opts.virtual + ']' : '', opts.method, opts.uri, (Date.now() - opts.timestamp), (err.error || err));
+        },
+        debug: function (opts, msg) {
+            console.log('DEBUG%s: %s %s:', opts.virtual ? ' [' + opts.virtual + ']' : '', opts.method, opts.uri, msg);
         }
     },
     _quietLog = {
         send: _.noop,
         sent: _.noop,
-        error: _.noop
+        error: _.noop,
+        debug: _.noop
     },
     _log = _defaultLog,
     _root = path.resolve(__dirname + '/virtual'),
@@ -157,25 +161,37 @@ class Vhttp {
     _findCall(opts) {
         return _.find(this.scenario, function (item) {
             let call = item.value,
-                callReq = call.request;
+                callReq = call.request,
+                method = _.trim(opts.method.toUpperCase()),
+                uri = _.trim(opts.uri.toLowerCase());
+
             if (!call._initialized) {
                 callReq.method = callReq.method.toUpperCase();
                 callReq.uri = callReq.uri.toLowerCase();
                 call._initialized = true;
             }
-            if (opts.method !== callReq.method) return false;
-            if (opts.uri !== callReq.uri) return false;
-            if (!eql(opts.preparedBody, callReq.body)) {
+            let eq = [
+                (method === callReq.method),
+                (uri === callReq.uri),
+                eql(opts.preparedBody, callReq.body)
+            ];
+
+
+            _log.debug(opts,
+                'Matching to ' + callReq.method + ':' + callReq.uri +
+                ' - method:' + eq[0] +
+                '; uri:' + eq[1] +
+                '; body:' + eq[2]);
+            if (eq[0] && eq[1] && !eq[2]) {
                 _log.error(opts, {
                     error: new Error(
-                        'Bodies do not match for ' + opts.method + ':' + opts.uri +
+                        'Bodies do not match for ' + method + ':' + uri +
                         '\nEXPECTED\n' + JSON.stringify(callReq.body) +
                         '\nACTUAL\n' + JSON.stringify(opts.preparedBody))
                 });
-                return false;
             }
 
-            return true;
+            return eq[0] && eq[1] && eq[2];
         });
     }
 

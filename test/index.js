@@ -11,7 +11,7 @@ before(function () {
     Vhttp.reset();
     Vhttp.configure({
         root: 'test/virtual',
-        quiet: true
+        quiet: false
     });
     Vhttp.register({
         scenario1: {
