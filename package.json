@@ -1,6 +1,6 @@
 {
   "name": "vhttp",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Promise based Node.js HTTP/HTTPS client with optional virtualization.",
   "main": "index.js",
   "scripts": {
@@ -47,7 +47,7 @@
     "lodash": "^4.13.1",
     "request-promise": "^3.0.0",
     "smart-eql": "^0.2.0",
-    "substituter": "^1.2.0",
+    "substituter": "^1.2.1",
     "xml2js": "^0.4.17"
   }
 }
