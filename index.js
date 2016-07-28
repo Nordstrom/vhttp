@@ -219,7 +219,7 @@ class Vhttp {
         if (!call) {
             let err = new Error('No virtual ' + this.virtual + ' call found for ' + opts.method + ':' + opts.uri);
             _log.error(opts, { error: err });
-            throw err;
+            return Promise.reject(err);
         }
 
         call._called = true;
@@ -280,10 +280,8 @@ class Vhttp {
 
         if (notCalled.length > 0) {
             let callErrors = _.map(notCalled, 'key');
-            return Promise.reject(new Error('The following calls for scenario ' + this.virtual + ' were not made: ' + callErrors.join(', ')));
+            throw new Error('The following calls for scenario ' + this.virtual + ' were not made: ' + callErrors.join(', '));
         }
-
-        return Promise.resolve();
     }
 
     static configure(opts) {
