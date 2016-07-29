@@ -243,7 +243,7 @@ it('checks that all calls were made', function () {
         vhttp.put('http://test.url/path3', { body: '<request><name>call3</name><param>call3-request-param</param></request>' })
     ])
         .then(function () {
-            return vhttp.done().should.be.fulfilled();
+            vhttp.done();
         });
 });
 
@@ -253,7 +253,7 @@ it('errs when all calls not made', function () {
     //noinspection JSUnresolvedFunction
     return vhttp.get('http://test.url/path')
         .then(function () {
-            return vhttp.done().should.be.rejectedWith(Error,
+            (function () {vhttp.done();}).should.throw(Error,
                 { message: 'The following calls for scenario scenario3 were not made: call2:1, call3:1' });
         });
 });
