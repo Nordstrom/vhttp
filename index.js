@@ -40,6 +40,12 @@ var _ = require('lodash'),
     _root = path.resolve(__dirname + '/virtual'),
     _scenarios = {};
 
+if (!RegExp.prototype.toJSON) {
+    // this allows stringify to work on regular expresssions.
+    // without this regular expressions are stringified to an empty object
+    RegExp.prototype.toJSON = RegExp.prototype.toString;
+}
+
 function initCall(call) {
     let key = call[0],
         value = call[1],
@@ -186,8 +192,8 @@ class Vhttp {
                 _log.error(opts, {
                     error: new Error(
                         'Bodies do not match for ' + method + ':' + uri +
-                        '\nEXPECTED\n' + JSON.stringify(callReq.body) +
-                        '\nACTUAL\n' + JSON.stringify(opts.preparedBody))
+                        '\nEXPECTED\n' + JSON.stringify(callReq.body, null, 4) +
+                        '\nACTUAL\n' + JSON.stringify(opts.preparedBody, null, 4))
                 });
             }
 
@@ -213,7 +219,7 @@ class Vhttp {
         if (!call) {
             let err = new Error('No virtual ' + this.virtual + ' call found for ' + opts.method + ':' + opts.uri);
             _log.error(opts, { error: err });
-            throw err;
+            return Promise.reject(err);
         }
 
         call._called = true;
@@ -274,10 +280,8 @@ class Vhttp {
 
         if (notCalled.length > 0) {
             let callErrors = _.map(notCalled, 'key');
-            return Promise.reject(new Error('The following calls for scenario ' + this.virtual + ' were not made: ' + callErrors.join(', ')));
+            throw new Error('The following calls for scenario ' + this.virtual + ' were not made: ' + callErrors.join(', '));
         }
-
-        return Promise.resolve();
     }
 
     static configure(opts) {
