@@ -69,6 +69,21 @@ before(function () {
                 method: 'put',
                 uri: 'http://test.url/path3'
             }
+        },
+        scenario4: {
+            'call1:1': {
+                method: 'get',
+                uri: 'http://test.url/path?first=firstval'
+            }
+        },
+        scenario5: {
+            'call1:1': {
+                method: 'get',
+                uri: 'http://test.url/path2?first=firstval',
+                qs: {
+                    second: 'secondval'
+                }
+            }
         }
     });
 });
@@ -257,3 +272,37 @@ it('errs when all calls not made', function () {
                 { message: 'The following calls for scenario scenario3 were not made: call2:1, call3:1' });
         });
 });
+
+it('matches query strings', function () {
+    return new Vhttp('scenario4')
+        .get('http://test.url/path?first=firstval')
+        .then(function (data) {
+            data.should.eql({
+                name: 'call1',
+                param: 'real-param'
+            });
+        });
+});
+
+it('combines uri and query strings passed as options', function () {
+    return new Vhttp('scenario5')
+        .get('http://test.url/path2?second=secondval', { qs: { first: 'firstval' } })
+        .then(function (data) {
+            data.should.eql({
+                name: 'call1',
+                param: 'real-param'
+            });
+        });
+});
+
+it('errs on missing query param', function () {
+    return new Vhttp('scenario5')
+        .get('http://test.url/path2', { qs: { first: 'firstval' } })
+        .then(function () {
+            throw new Error('Error not thrown');
+        })
+        .catch(function (err) {
+            err.should.eql(new Error('No virtual scenario5 call found for GET:http://test.url/path2'));
+        });
+});
+
