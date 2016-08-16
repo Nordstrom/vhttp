@@ -139,8 +139,10 @@ function render(scenario) {
             prepareUriObj(call.request)
         ]).then(function (results) {
             return _.merge({}, item, {
-                request: { uri: results[2].uri, qs: results[2].qs, body: results[0] },
-                response: { body: results[1] }
+                value: {
+                    request: { uri: results[2].uri, qs: results[2].qs, body: results[0] },
+                    response: { body: results[1] }
+                }
             });
         });
     });
