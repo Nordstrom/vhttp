@@ -155,13 +155,14 @@ function prepareBody(opts) {
 }
 
 function prepareUriObj(opts){
-    let queryIndex = opts.uri.indexOf('?');
+    let newOpts = _.cloneDeep(opts),
+        queryIndex = newOpts.uri.indexOf('?');
     if (queryIndex !== -1){
         let uriQuery = querystring.parse(opts.uri.slice(queryIndex + 1));
-        opts.qs = opts.qs ? _.assign(opts.qs, uriQuery) : uriQuery;
-        opts.uri = opts.uri.slice(0, queryIndex);
+        newOpts.qs = newOpts.qs ? _.assign(newOpts.qs, uriQuery) : uriQuery;
+        newOpts.uri = newOpts.uri.slice(0, queryIndex);
     }
-    return Promise.resolve(opts);
+    return Promise.resolve(newOpts);
 }
 
 class Vhttp {
@@ -284,24 +285,22 @@ class Vhttp {
 
         return this.init()
             .then(function () {
-                return prepareUriObj(opts);
-            }).then(function(){
-                return prepareBody(opts);
-            }).then(function (body) {
-                if (self.virtual && !self.scenario) {
-                    let err = new Error('No virtual ' + virtual + ' scenario found for ' + method + ':' + uri);
-                    _log.error(opts, { error: err });
-                    throw err;
-                }
+                return Promise.join(prepareUriObj(opts), prepareBody(opts), function (newOpts, body) {
+                    if (self.virtual && !self.scenario) {
+                        let err = new Error('No virtual ' + virtual + ' scenario found for ' + method + ':' + uri);
+                        _log.error(newOpts, {error: err});
+                        throw err;
+                    }
 
-                opts.preparedBody = body;
-                opts.virtual = virtual;
+                    newOpts.preparedBody = body;
+                    newOpts.virtual = virtual;
 
-                _log.send(opts);
+                    _log.send(newOpts);
 
-                return self.scenario
-                    ? self._sendVirtual(opts)
-                    : self._sendReal(opts);
+                    return self.scenario
+                        ? self._sendVirtual(newOpts)
+                        : self._sendReal(newOpts);
+                });
             });
     }
 
