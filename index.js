@@ -198,8 +198,8 @@ class Vhttp {
             let eq = [
                 (method === callReq.method),
                 (uri === callReq.uri),
-                eql(opts.preparedBody, callReq.body),
-                eql(qs, callReq.qs)
+                eql(qs, callReq.qs),
+                eql(opts.preparedBody, callReq.body)
             ];
 
 
@@ -208,22 +208,23 @@ class Vhttp {
                 (callReq.qs ? ('?' + querystring.stringify(callReq.qs)) : '') +
                 ' - method:' + eq[0] +
                 '; uri:' + eq[1] +
-                '; body:' + eq[2] +
-                '; qs:' + eq[3]);
+                '; qs:' + eq[2] +
+                '; body:' + eq[3]);
+
             if (eq[0] && eq[1] && !eq[2]) {
-                _log.error(opts, {
-                    error: new Error(
-                        'Bodies do not match for ' + method + ':' + uri +
-                        '\nEXPECTED\n' + JSON.stringify(callReq.body, null, 4) +
-                        '\nACTUAL\n' + JSON.stringify(opts.preparedBody, null, 4))
-                });
-            }
-            if (eq[0] && eq[1] && !eq[3]) {
                 _log.error(opts, {
                     error: new Error(
                         'Query strings do not match for ' + method + ':' + uri +
                         '\nEXPECTED\n' + JSON.stringify(callReq.qs, null, 4) +
                         '\nACTUAL\n' + JSON.stringify(qs, null, 4))
+                });
+            }
+            if (eq[0] && eq[1] && !eq[3]) {
+                _log.error(opts, {
+                    error: new Error(
+                        'Bodies do not match for ' + method + ':' + uri +
+                        '\nEXPECTED\n' + JSON.stringify(callReq.body, null, 4) +
+                        '\nACTUAL\n' + JSON.stringify(opts.preparedBody, null, 4))
                 });
             }
 
