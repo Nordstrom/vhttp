@@ -71,6 +71,7 @@ function initCall(call) {
         else if (_.endsWith(file, '.request.tmpl.xml')) request.templateXml = file;
         else if (_.endsWith(file, `.request.data.${num}.js`)) request.data = require(file);
         else if (_.endsWith(file, '.request.data.js')) request.data = request.data || require(file);
+        else if (_.endsWith(file, `.response.${num}.json`)) response.json = file;
         else if (_.endsWith(file, '.response.json')) response.json = file;
         else if (_.endsWith(file, '.response.xml')) response.xml = file;
         else if (_.endsWith(file, '.response.tmpl.json')) response.templateJson = file;
