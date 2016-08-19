@@ -65,15 +65,15 @@ function initCall(call) {
         };
 
     _.forEach(files, function (file) {
-        if (_.endsWith(file, '.request.json')) request.json = file;
-        else if (_.endsWith(file, `.request.${num}.json`)) response.json = file;
+        if (_.endsWith(file, `.request.${num}.json`)) response.json = file;
+        else if (_.endsWith(file, '.request.json')) request.json = file;
         else if (_.endsWith(file, '.request.xml')) request.xml = file;
         else if (_.endsWith(file, '.request.tmpl.json')) request.templateJson = file;
         else if (_.endsWith(file, '.request.tmpl.xml')) request.templateXml = file;
         else if (_.endsWith(file, `.request.data.${num}.js`)) request.data = require(file);
         else if (_.endsWith(file, '.request.data.js')) request.data = request.data || require(file);
-        else if (_.endsWith(file, '.response.json')) response.json = file;
         else if (_.endsWith(file, `.response.${num}.json`)) response.json = file;
+        else if (_.endsWith(file, '.response.json')) response.json = file;
         else if (_.endsWith(file, '.response.xml')) response.xml = file;
         else if (_.endsWith(file, '.response.tmpl.json')) response.templateJson = file;
         else if (_.endsWith(file, '.response.tmpl.xml')) response.templateXml = file;
