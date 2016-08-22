@@ -163,7 +163,7 @@ function prepareUriObj(opts){
         uriObj.uri = opts.uri.slice(0, queryIndex);
         return Promise.resolve(uriObj);
     } else {
-        return Promise.resolve(opts);
+        return Promise.resolve({uri: opts.uri, qs: opts.qs});
     }
 }
 
