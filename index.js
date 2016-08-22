@@ -13,6 +13,8 @@ var _ = require('lodash'),
     xmlParser = Promise.promisifyAll(new XmlParser({ explicitRoot: true, explicitArray: false, mergeAttrs: true })),
     fromXml = xmlParser.parseStringAsync,
     path = require('path'),
+    querystring = require('querystring'),
+    url = require('url'),
     sub = require('substituter'),
     eql = require('smart-eql'),
     request = require('request-promise'),
@@ -57,7 +59,8 @@ function initCall(call) {
 
         request = {
             uri: value.uri,
-            method: value.method
+            method: value.method,
+            qs: value.qs
         },
         response = {
             status: value.status,
@@ -134,11 +137,12 @@ function render(scenario) {
         let call = item.value;
         return Promise.all([
             renderBody(call.request),
-            renderBody(call.response, true)
+            renderBody(call.response, true),
+            prepareUriObj(call.request)
         ]).then(function (results) {
             return _.merge({}, item, {
                 value: {
-                    request: { body: results[0] },
+                    request: { uri: results[2].uri, qs: results[2].qs, body: results[0] },
                     response: { body: results[1] }
                 }
             });
@@ -150,6 +154,19 @@ function prepareBody(opts) {
     return _.isString(opts.body)
         ? fromXml(opts.body)
         : Promise.resolve(opts.body);
+}
+
+function prepareUriObj(opts){
+    let uriObj = {},
+        queryIndex = opts.uri.indexOf('?');
+    if (queryIndex !== -1){
+        let uriQuery = querystring.parse(opts.uri.slice(queryIndex + 1));
+        uriObj.qs = opts.qs ? _.assign(opts.qs, uriQuery) : uriQuery;
+        uriObj.uri = opts.uri.slice(0, queryIndex);
+        return Promise.resolve(uriObj);
+    } else {
+        return Promise.resolve({uri: opts.uri, qs: opts.qs});
+    }
 }
 
 class Vhttp {
@@ -170,6 +187,7 @@ class Vhttp {
         return _.find(this.scenario, function (item) {
             let call = item.value,
                 callReq = call.request,
+                qs = opts.qs,
                 method = _.trim(opts.method.toUpperCase()),
                 uri = _.trim(opts.uri.toLowerCase());
 
@@ -181,16 +199,28 @@ class Vhttp {
             let eq = [
                 (method === callReq.method),
                 (uri === callReq.uri),
+                eql(qs, callReq.qs),
                 eql(opts.preparedBody, callReq.body)
             ];
 
 
             _log.debug(opts,
                 'Matching to ' + callReq.method + ':' + callReq.uri +
+                (callReq.qs ? ('?' + querystring.stringify(callReq.qs)) : '') +
                 ' - method:' + eq[0] +
                 '; uri:' + eq[1] +
-                '; body:' + eq[2]);
+                '; qs:' + eq[2] +
+                '; body:' + eq[3]);
+
             if (eq[0] && eq[1] && !eq[2]) {
+                _log.error(opts, {
+                    error: new Error(
+                        'Query strings do not match for ' + method + ':' + uri +
+                        '\nEXPECTED\n' + JSON.stringify(callReq.qs, null, 4) +
+                        '\nACTUAL\n' + JSON.stringify(qs, null, 4))
+                });
+            }
+            if (eq[0] && eq[1] && !eq[3]) {
                 _log.error(opts, {
                     error: new Error(
                         'Bodies do not match for ' + method + ':' + uri +
@@ -199,7 +229,7 @@ class Vhttp {
                 });
             }
 
-            return eq[0] && eq[1] && eq[2];
+            return eq[0] && eq[1] && eq[2] && eq[3];
         });
     }
 
@@ -250,6 +280,7 @@ class Vhttp {
     }
 
     send(opts) {
+        opts = _.cloneDeep(opts);
         opts.timestamp = Date.now();
 
         let self = this,
@@ -257,24 +288,27 @@ class Vhttp {
             method = opts.method.toUpperCase(),
             uri = opts.uri.toLowerCase();
 
-        return this.init().then(function () {
-            return prepareBody(opts).then(function (body) {
-                if (self.virtual && !self.scenario) {
-                    let err = new Error('No virtual ' + virtual + ' scenario found for ' + method + ':' + uri);
-                    _log.error(opts, { error: err });
-                    throw err;
-                }
+        return this.init()
+            .then(function () {
+                return Promise.join(prepareUriObj(opts), prepareBody(opts), function (uriObj, body) {
+                    if (self.virtual && !self.scenario) {
+                        let err = new Error('No virtual ' + virtual + ' scenario found for ' + method + ':' + uri);
+                        _log.error(opts, {error: err});
+                        throw err;
+                    }
 
-                opts.preparedBody = body;
-                opts.virtual = virtual;
+                    opts.uri = uriObj.uri;
+                    opts.qs = uriObj.qs;
+                    opts.preparedBody = body;
+                    opts.virtual = virtual;
 
-                _log.send(opts);
+                    _log.send(opts);
 
-                return self.scenario
-                    ? self._sendVirtual(opts)
-                    : self._sendReal(opts);
+                    return self.scenario
+                        ? self._sendVirtual(opts)
+                        : self._sendReal(opts);
+                });
             });
-        });
     }
 
     done() {
