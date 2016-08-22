@@ -156,16 +156,16 @@ function prepareBody(opts) {
         : Promise.resolve(opts.body);
 }
 
-function prepareUriObj(opts){
-    let uriObj = {},
-        queryIndex = opts.uri.indexOf('?');
-    if (queryIndex !== -1){
+function prepareUriObj(opts) {
+    let queryIndex = opts.uri.indexOf('?');
+    if (queryIndex !== -1) {
         let uriQuery = querystring.parse(opts.uri.slice(queryIndex + 1));
-        uriObj.qs = opts.qs ? _.assign(opts.qs, uriQuery) : uriQuery;
-        uriObj.uri = opts.uri.slice(0, queryIndex);
-        return Promise.resolve(uriObj);
+        return Promise.resolve({
+            qs: opts.qs ? _.assign(opts.qs, uriQuery) : uriQuery,
+            uri: opts.uri.slice(0, queryIndex)
+        });
     } else {
-        return Promise.resolve({uri: opts.uri, qs: opts.qs});
+        return Promise.resolve({ uri: opts.uri, qs: opts.qs });
     }
 }
 
@@ -293,7 +293,7 @@ class Vhttp {
                 return Promise.join(prepareUriObj(opts), prepareBody(opts), function (uriObj, body) {
                     if (self.virtual && !self.scenario) {
                         let err = new Error('No virtual ' + virtual + ' scenario found for ' + method + ':' + uri);
-                        _log.error(opts, {error: err});
+                        _log.error(opts, { error: err });
                         throw err;
                     }
 
