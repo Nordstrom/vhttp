@@ -157,7 +157,8 @@ function prepareBody(opts) {
 }
 
 function prepareUriObj(opts) {
-    let queryIndex = opts.uri.indexOf('?');
+    // if uri is a regexp, this will not support qs params since ? marks an optional character in regexp
+    let queryIndex = opts.uri instanceof RegExp ? -1 : opts.uri.indexOf('?');
     if (queryIndex !== -1) {
         let uriQuery = querystring.parse(opts.uri.slice(queryIndex + 1));
         return Promise.resolve({
@@ -193,16 +194,19 @@ class Vhttp {
 
             if (!call._initialized) {
                 callReq.method = callReq.method.toUpperCase();
-                callReq.uri = callReq.uri.toLowerCase();
+
+                // only convert to lower if it's not a reqexp
+                callReq.uri = (callReq.uri instanceof RegExp) ? callReq.uri : callReq.uri.toLowerCase();
+
                 call._initialized = true;
             }
+
             let eq = [
                 (method === callReq.method),
-                (uri === callReq.uri),
+                eql(uri, callReq.uri),
                 eql(qs, callReq.qs),
                 eql(opts.preparedBody, callReq.body)
             ];
-
 
             _log.debug(opts,
                 'Matching to ' + callReq.method + ':' + callReq.uri +
