@@ -240,10 +240,16 @@ class Vhttp {
     _sendReal(opts) {
         return request(opts)
             .then(function (data) {
+                if (opts.event) {
+                    opts.event.duration = Date.now() - opts.timestamp;
+                }
                 _log.sent(opts);
                 return data;
             })
             .catch(function (err) {
+                if (opts.event) {
+                    opts.event.duration = Date.now() - opts.timestamp;
+                }
                 _log.error(opts, err);
                 throw err;
             });
@@ -327,7 +333,7 @@ class Vhttp {
     static configure(opts) {
         _root = path.resolve(opts.root || _root);
         if (opts.quiet) _log = _quietLog;
-        if (opts.log) _log = _.assign({}, _defaultLog, opts.log);
+        if (opts.log) _log = opts.log;
         return this.register(opts.scenarios);
     }
 
