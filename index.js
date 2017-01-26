@@ -18,27 +18,27 @@ var _ = require('lodash'),
     sub = require('substituter'),
     eql = require('smart-eql'),
     request = require('request-promise'),
-    _defaultHandler = {
+    _defaultHandlers = {
         send: function (opts) {
-            console.log('SEND%s: %s %s', opts.virtual ? ' [' + opts.virtual + ']' : '', opts.method, opts.uri)
+            console.log('SEND%s: %s %s', opts.request.virtual ? ' [' + opts.request.virtual + ']' : '', opts.request.method, opts.request.uri)
         },
         sent: function (opts) {
-            console.log('SENT%s: %s %s [%s ms]', opts.virtual ? ' [' + opts.virtual + ']' : '', opts.method, opts.uri, (Date.now() - opts.timestamp));
+            console.log('SENT%s: %s %s [%s ms]', opts.request.virtual ? ' [' + opts.request.virtual + ']' : '', opts.request.method, opts.request.uri, opts.request.duration);
         },
-        error: function (opts, err) {
-            console.log('ERROR%s: %s %s [%s ms]:', opts.virtual ? ' [' + opts.virtual + ']' : '', opts.method, opts.uri, (Date.now() - opts.timestamp), (err.error || err));
+        error: function (opts) {
+            console.log('ERROR%s: %s %s [%s ms]:', opts.request.virtual ? ' [' + opts.request.virtual + ']' : '', opts.request.method, opts.request.uri, opts.request.duration, (opts.err.error || opts.err));
         },
-        debug: function (opts, msg) {
-            console.log('DEBUG%s: %s %s:', opts.virtual ? ' [' + opts.virtual + ']' : '', opts.method, opts.uri, msg);
+        debug: function (opts) {
+            console.log('DEBUG%s: %s %s:', opts.request.virtual ? ' [' + opts.request.virtual + ']' : '', opts.request.method, opts.request.uri, opts.msg);
         }
     },
-    _quietHandler = {
+    _quietHandlers = {
         send: _.noop,
         sent: _.noop,
         error: _.noop,
         debug: _.noop
     },
-    _eventHandler = _defaultHandler,
+    _eventHandlers = _defaultHandlers,
     _root = path.resolve(__dirname + '/virtual'),
     _scenarios = {};
 
@@ -208,16 +208,19 @@ class Vhttp {
                 eql(opts.preparedBody, callReq.body)
             ];
 
-            _eventHandler.debug(opts,
-                'Matching to ' + callReq.method + ':' + callReq.uri +
+            _eventHandlers.debug({
+                request: opts,
+                startedAt: opts.timestamp,
+                message: 'Matching to ' + callReq.method + ':' + callReq.uri +
                 (callReq.qs ? ('?' + querystring.stringify(callReq.qs)) : '') +
                 ' - method:' + eq[0] +
                 '; uri:' + eq[1] +
                 '; qs:' + eq[2] +
-                '; body:' + eq[3]);
+                '; body:' + eq[3]
+            });
 
             if (eq[0] && eq[1] && !eq[2]) {
-                _eventHandler.error(opts, {
+                _eventHandlers.error(opts, {
                     error: new Error(
                         'Query strings do not match for ' + method + ':' + uri +
                         '\nEXPECTED\n' + JSON.stringify(callReq.qs, null, 4) +
@@ -225,7 +228,7 @@ class Vhttp {
                 });
             }
             if (eq[0] && eq[1] && !eq[3]) {
-                _eventHandler.error(opts, {
+                _eventHandlers.error(opts, {
                     error: new Error(
                         'Bodies do not match for ' + method + ':' + uri +
                         '\nEXPECTED\n' + JSON.stringify(callReq.body, null, 4) +
@@ -240,17 +243,13 @@ class Vhttp {
     _sendReal(opts) {
         return request(opts)
             .then(function (data) {
-                if (opts.event) {
-                    opts.event.duration = Date.now() - opts.timestamp;
-                }
-                _eventHandler.sent(opts);
+                opts.duration = Date.now() - opts.timestamp;
+                _eventHandlers.sent({ request: opts, startedAt: opts.timestamp, response: data });
                 return data;
             })
             .catch(function (err) {
-                if (opts.event) {
-                    opts.event.duration = Date.now() - opts.timestamp;
-                }
-                _eventHandler.error(opts, err);
+                opts.duration = Date.now() - opts.timestamp;
+                _eventHandlers.error({ request: opts, startedAt: opts.timestamp, error: err.error || err });
                 throw err;
             });
     }
@@ -260,7 +259,7 @@ class Vhttp {
 
         if (!call) {
             let err = new Error('No virtual ' + this.virtual + ' call found for ' + opts.method + ':' + opts.uri);
-            _eventHandler.error(opts, { error: err });
+            _eventHandlers.error({ request: opts, startedAt: opts.timestamp, error: err });
             return Promise.reject(err);
         }
 
@@ -275,7 +274,7 @@ class Vhttp {
             return Promise
                 .delay(delay)
                 .then(function () {
-                    _eventHandler.sent(opts);
+                    _eventHandlers.sent({ request: opts, startedAt: opts.timestamp, response: data });
                     return responseBody;
                 });
         }
@@ -283,7 +282,7 @@ class Vhttp {
         return Promise
             .delay(delay)
             .then(function () {
-                _eventHandler.error(opts, { error: responseBody });
+                _eventHandlers.error({ request: opts, startedAt: opts.timestamp, error: responseBody });
                 return Promise.reject({ error: responseBody });
             });
 
@@ -303,7 +302,7 @@ class Vhttp {
                 return Promise.join(prepareUriObj(opts), prepareBody(opts), function (uriObj, body) {
                     if (self.virtual && !self.scenario) {
                         let err = new Error('No virtual ' + virtual + ' scenario found for ' + method + ':' + uri);
-                        _eventHandler.error(opts, { error: err });
+                        _eventHandlers.error({ request: opts, startedAt: opts.timestamp, error: err });
                         throw err;
                     }
 
@@ -312,7 +311,7 @@ class Vhttp {
                     opts.preparedBody = body;
                     opts.virtual = virtual;
 
-                    _eventHandler.send(opts);
+                    _eventHandlers.send({ request: opts, startedAt: opts.timestamp });
 
                     return self.scenario
                         ? self._sendVirtual(opts)
@@ -322,7 +321,9 @@ class Vhttp {
     }
 
     done() {
-        var notCalled = _.filter(this.scenario, function (o) { return !o._called; });
+        var notCalled = _.filter(this.scenario, function (o) {
+            return !o._called;
+        });
 
         if (notCalled.length > 0) {
             let callErrors = _.map(notCalled, 'key');
@@ -332,11 +333,16 @@ class Vhttp {
 
     static configure(opts) {
         _root = path.resolve(opts.root || _root);
-        if (opts.quiet) _eventHandler = _quietHandler;
-        if (opts.eventHandler) {
-            _eventHandler = opts.eventHandler;
+        if (opts.quiet) _eventHandlers = _quietHandlers;
+        if (opts.eventHandlers) {
+            _eventHandlers = {
+                send: opts.eventHandlers.send || _defaultHandlers.send,
+                debug: opts.eventHandlers.debug || _defaultHandlers.debug,
+                sent: opts.eventHandlers.sent || _defaultHandlers.sent,
+                error: opts.eventHandlers.error || _defaultHandlers.error
+            };
         } else if (opts.log) {
-            _eventHandler = _.assign({}, _defaultHandler, opts.log);
+            _eventHandlers = _.assign({}, _defaultHandlers, opts.log);
         }
         return this.register(opts.scenarios);
     }
