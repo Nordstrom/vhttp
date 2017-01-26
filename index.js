@@ -20,7 +20,7 @@ var _ = require('lodash'),
     request = require('request-promise'),
     _defaultHandlers = {
         send: function (opts) {
-            console.log('SEND%s: %s %s', opts.request.virtual ? ' [' + opts.request.virtual + ']' : '', opts.request.method, opts.request.uri)
+            console.log('SEND%s: %s %s', opts.request.virtual ? ' [' + opts.request.virtual + ']' : '', opts.request.method, opts.request.uri);
         },
         sent: function (opts) {
             console.log('SENT%s: %s %s [%s ms]', opts.request.virtual ? ' [' + opts.request.virtual + ']' : '', opts.request.method, opts.request.uri, opts.request.duration);
