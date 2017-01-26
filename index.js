@@ -23,13 +23,13 @@ var _ = require('lodash'),
             console.log('SEND%s: %s %s', opts.request.virtual ? ' [' + opts.request.virtual + ']' : '', opts.request.method, opts.request.uri);
         },
         sent: function (opts) {
-            console.log('SENT%s: %s %s [%s ms]', opts.request.virtual ? ' [' + opts.request.virtual + ']' : '', opts.request.method, opts.request.uri, opts.request.duration);
+            console.log('SENT%s: %s %s [%s ms]', opts.request.virtual ? ' [' + opts.request.virtual + ']' : '', opts.request.method, opts.request.uri, opts.duration);
         },
         error: function (opts) {
-            console.log('ERROR%s: %s %s [%s ms]:', opts.request.virtual ? ' [' + opts.request.virtual + ']' : '', opts.request.method, opts.request.uri, opts.request.duration, (opts.err.error || opts.err));
+            console.log('ERROR%s: %s %s [%s ms]:', opts.request.virtual ? ' [' + opts.request.virtual + ']' : '', opts.request.method, opts.request.uri, opts.duration, (opts.error.error || opts.error));
         },
         debug: function (opts) {
-            console.log('DEBUG%s: %s %s:', opts.request.virtual ? ' [' + opts.request.virtual + ']' : '', opts.request.method, opts.request.uri, opts.msg);
+            console.log('DEBUG%s: %s %s:', opts.request.virtual ? ' [' + opts.request.virtual + ']' : '', opts.request.method, opts.request.uri, opts.message);
         }
     },
     _quietHandlers = {
