@@ -243,13 +243,12 @@ class Vhttp {
     _sendReal(opts) {
         return request(opts)
             .then(function (data) {
-                opts.duration = Date.now() - opts.timestamp;
-                _eventHandler.sent({ request: opts, startedAt: opts.timestamp, response: data });
+                _eventHandler.sent({ request: opts, startedAt: opts.timestamp, response: data, duration: Date.now() - opts.timestamp });
                 return data;
             })
             .catch(function (err) {
                 opts.duration = Date.now() - opts.timestamp;
-                _eventHandler.error({ request: opts, startedAt: opts.timestamp, error: err.error || err });
+                _eventHandler.error({ request: opts, startedAt: opts.timestamp, duration: Date.now() - opts.timestamp, error: err.error || err });
                 throw err;
             });
     }
@@ -259,7 +258,7 @@ class Vhttp {
 
         if (!call) {
             let err = new Error('No virtual ' + this.virtual + ' call found for ' + opts.method + ':' + opts.uri);
-            _eventHandler.error({ request: opts, startedAt: opts.timestamp, error: err });
+            _eventHandler.error({ request: opts, startedAt: opts.timestamp, duration: Date.now() - opts.timestamp, error: err });
             return Promise.reject(err);
         }
 
@@ -274,7 +273,7 @@ class Vhttp {
             return Promise
                 .delay(delay)
                 .then(function () {
-                    _eventHandler.sent({ request: opts, startedAt: opts.timestamp, response: data });
+                    _eventHandler.sent({ request: opts, startedAt: opts.timestamp, response: data, duration: Date.now() - opts.timestamp });
                     return responseBody;
                 });
         }
@@ -282,7 +281,7 @@ class Vhttp {
         return Promise
             .delay(delay)
             .then(function () {
-                _eventHandler.error({ request: opts, startedAt: opts.timestamp, error: responseBody });
+                _eventHandler.error({ request: opts, startedAt: opts.timestamp, duration: Date.now() - opts.timestamp, error: responseBody });
                 return Promise.reject({ error: responseBody });
             });
 
