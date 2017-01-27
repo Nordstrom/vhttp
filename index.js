@@ -273,7 +273,7 @@ class Vhttp {
             return Promise
                 .delay(delay)
                 .then(function () {
-                    _eventHandler.sent({ request: opts, startedAt: opts.timestamp, response: data, duration: Date.now() - opts.timestamp });
+                    _eventHandler.sent({ request: opts, startedAt: opts.timestamp, response: responseBody, duration: Date.now() - opts.timestamp });
                     return responseBody;
                 });
         }
