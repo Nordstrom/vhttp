@@ -18,7 +18,7 @@ var _ = require('lodash'),
     sub = require('substituter'),
     eql = require('smart-eql'),
     request = require('request-promise'),
-    _verbosetHandlers = {
+    _verboseHandlers = {
         send: function (opts) {
             console.log('SEND%s: %s %s', opts.virtual ? ' [' + opts.virtual + ']' : '', opts.method, opts.uri);
         },
@@ -355,7 +355,7 @@ class Vhttp {
         // that only includes an error handler.
         if (opts.verbose) _eventHandlers = _.assign(_eventHandlers, _verboseHandlers);
         if (opts.eventHandlers || opts.log) {
-            _eventHandlers = _.assign({}, _verbosetHandlers, opts.log, opts.eventHandlers);
+            _eventHandlers = _.assign({}, _verboseHandlers, opts.log, opts.eventHandlers);
         }
         if (opts.scenarios) this.register(opts.scenarios);
     }
