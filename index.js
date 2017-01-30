@@ -360,7 +360,7 @@ class Vhttp {
         // that only includes an error handler.
         if (opts.verbose) _eventHandlers = _.assign(_eventHandlers, _verboseHandlers);
         if (opts.eventHandlers || opts.log) {
-            _eventHandlers = _.assign({}, _verboseHandlers, opts.log, opts.eventHandlers);
+            _eventHandlers = _.assign(_eventHandlers, opts.log, opts.eventHandlers);
         }
         if (opts.scenarios) this.register(opts.scenarios);
     }
