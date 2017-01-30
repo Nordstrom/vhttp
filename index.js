@@ -353,8 +353,7 @@ class Vhttp {
         }
     }
 
-    static
-    configure(opts) {
+    static configure(opts) {
         _root = path.resolve(opts.root || _root);
         // Use assign for _eventHandlers so that subsequent calls to config can partially override handlers
         // for instance one config may set opts.verbose = true, followed by next config includes an eventHandlers
@@ -366,8 +365,7 @@ class Vhttp {
         if (opts.scenarios) this.register(opts.scenarios);
     }
 
-    static
-    register(scenarios) {
+    static register(scenarios) {
         _scenarios = flow(
             toPairs,
             map(initScenario),
@@ -376,8 +374,7 @@ class Vhttp {
         )(scenarios);
     }
 
-    static
-    reset() {
+    static reset() {
         _scenarios = {};
     }
 }
