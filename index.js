@@ -209,21 +209,27 @@ class Vhttp {
                 '; uri:' + eq[1] +
                 '; qs:' + eq[2] +
                 '; body:' + eq[3];
-            _eventHandlers.debug(opts);
+            if (_eventHandlers && _eventHandlers.debug) {
+                _eventHandlers.debug(opts);
+            }
 
             if (eq[0] && eq[1] && !eq[2]) {
                 opts.error = new Error(
                     'Query strings do not match for ' + method + ':' + uri +
                     '\nEXPECTED\n' + JSON.stringify(callReq.qs, null, 4) +
                     '\nACTUAL\n' + JSON.stringify(qs, null, 4));
-                _eventHandlers.error(opts);
+                if (_eventHandlers && _eventHandlers.error) {
+                    _eventHandlers.error(opts);
+                }
             }
             if (eq[0] && eq[1] && !eq[3]) {
                 opts.error = new Error(
                     'Bodies do not match for ' + method + ':' + uri +
                     '\nEXPECTED\n' + JSON.stringify(callReq.body, null, 4) +
                     '\nACTUAL\n' + JSON.stringify(opts.preparedBody, null, 4));
-                _eventHandlers.error(opts);
+                if (_eventHandlers && _eventHandlers.error) {
+                    _eventHandlers.error(opts);
+                }
             }
 
             return eq[0] && eq[1] && eq[2] && eq[3];
@@ -233,7 +239,7 @@ class Vhttp {
     _sendReal(opts) {
         return request(opts)
             .then(function (data) {
-                if (_eventHandlers) {
+                if (_eventHandlers && _eventHandlers.sent) {
                     opts.duration = Date.now() - opts.startedAt;
                     opts.responseBody = data;
                     _eventHandlers.sent(opts);
@@ -241,7 +247,7 @@ class Vhttp {
                 return data;
             })
             .catch(function (err) {
-                if (_eventHandlers) {
+                if (_eventHandlers && _eventHandlers.error) {
                     opts.duration = Date.now() - opts.startedAt;
                     opts.error = err.error || err;
                     _eventHandlers.error(opts);
@@ -255,7 +261,7 @@ class Vhttp {
 
         if (!call) {
             let err = new Error('No virtual ' + this.virtual + ' call found for ' + opts.method + ':' + opts.uri);
-            if (_eventHandlers) {
+            if (_eventHandlers && _eventHandlers.error) {
                 opts.duration = Date.now() - opts.startedAt;
                 opts.error = err;
                 _eventHandlers.error(opts);
@@ -274,7 +280,7 @@ class Vhttp {
             return Promise
                 .delay(delay)
                 .then(function () {
-                    if (_eventHandlers) {
+                    if (_eventHandlers && _eventHandlers.sent) {
                         opts.duration = Date.now() - opts.startedAt;
                         opts.responseBody = responseBody;
                         _eventHandlers.sent(opts);
@@ -286,7 +292,7 @@ class Vhttp {
         return Promise
             .delay(delay)
             .then(function () {
-                if (_eventHandlers) {
+                if (_eventHandlers && _eventHandlers.error) {
                     opts.duration = Date.now() - opts.startedAt;
                     opts.error = responseBody;
                     _eventHandlers.error(opts);
@@ -311,7 +317,7 @@ class Vhttp {
                 return Promise.join(prepareUriObj(opts), prepareBody(opts), function (uriObj, body) {
                     if (self.virtual && !self.scenario) {
                         let err = new Error('No virtual ' + virtual + ' scenario found for ' + method + ':' + uri);
-                        if (_eventHandlers) {
+                        if (_eventHandlers && _eventHandlers.error) {
                             opts.error = err;
                             _eventHandlers.error(opts);
                         }
@@ -322,7 +328,7 @@ class Vhttp {
                     opts.qs = uriObj.qs;
                     opts.preparedBody = body;
                     opts.virtual = virtual;
-                    if (_eventHandlers) {
+                    if (_eventHandlers && _eventHandlers.send) {
                         _eventHandlers.send(opts);
                     }
 
