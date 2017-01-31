@@ -18,29 +18,24 @@ var _ = require('lodash'),
     sub = require('substituter'),
     eql = require('smart-eql'),
     request = require('request-promise'),
-    _defaultLog = {
+    _verboseHandlers = {
         send: function (opts) {
-            console.log('SEND%s: %s %s', opts.virtual ? ' [' + opts.virtual + ']' : '', opts.method, opts.uri)
+            console.log('SEND%s: %s %s', opts.virtual ? ' [' + opts.virtual + ']' : '', opts.method, opts.uri);
         },
         sent: function (opts) {
-            console.log('SENT%s: %s %s [%s ms]', opts.virtual ? ' [' + opts.virtual + ']' : '', opts.method, opts.uri, (Date.now() - opts.timestamp));
+            console.log('SENT%s: %s %s [%s ms]', opts.virtual ? ' [' + opts.virtual + ']' : '', opts.method, opts.uri, opts.duration);
         },
-        error: function (opts, err) {
-            console.log('ERROR%s: %s %s [%s ms]:', opts.virtual ? ' [' + opts.virtual + ']' : '', opts.method, opts.uri, (Date.now() - opts.timestamp), (err.error || err));
+        error: function (opts) {
+            console.log('ERROR%s: %s %s [%s ms]:', opts.virtual ? ' [' + opts.virtual + ']' : '', opts.method, opts.uri, opts.duration, (opts.error.error || opts.error));
         },
-        debug: function (opts, msg) {
-            console.log('DEBUG%s: %s %s:', opts.virtual ? ' [' + opts.virtual + ']' : '', opts.method, opts.uri, msg);
+        debug: function (opts) {
+            console.log('DEBUG%s: %s %s:', opts.virtual ? ' [' + opts.virtual + ']' : '', opts.method, opts.uri, opts.message);
         }
     },
-    _quietLog = {
-        send: _.noop,
-        sent: _.noop,
-        error: _.noop,
-        debug: _.noop
-    },
-    _log = _defaultLog,
+    // _eventHandlers = _verbosetHandlers,
     _root = path.resolve(__dirname + '/virtual'),
-    _scenarios = {};
+    _scenarios = {},
+    _eventHandlers;
 
 if (!RegExp.prototype.toJSON) {
     // this allows stringify to work on regular expresssions.
@@ -208,29 +203,33 @@ class Vhttp {
                 eql(opts.preparedBody, callReq.body)
             ];
 
-            _log.debug(opts,
-                'Matching to ' + callReq.method + ':' + callReq.uri +
+            opts.message = 'Matching to ' + callReq.method + ':' + callReq.uri +
                 (callReq.qs ? ('?' + querystring.stringify(callReq.qs)) : '') +
                 ' - method:' + eq[0] +
                 '; uri:' + eq[1] +
                 '; qs:' + eq[2] +
-                '; body:' + eq[3]);
+                '; body:' + eq[3];
+            if (_eventHandlers && _eventHandlers.debug) {
+                _eventHandlers.debug(opts);
+            }
 
             if (eq[0] && eq[1] && !eq[2]) {
-                _log.error(opts, {
-                    error: new Error(
-                        'Query strings do not match for ' + method + ':' + uri +
-                        '\nEXPECTED\n' + JSON.stringify(callReq.qs, null, 4) +
-                        '\nACTUAL\n' + JSON.stringify(qs, null, 4))
-                });
+                opts.error = new Error(
+                    'Query strings do not match for ' + method + ':' + uri +
+                    '\nEXPECTED\n' + JSON.stringify(callReq.qs, null, 4) +
+                    '\nACTUAL\n' + JSON.stringify(qs, null, 4));
+                if (_eventHandlers && _eventHandlers.error) {
+                    _eventHandlers.error(opts);
+                }
             }
             if (eq[0] && eq[1] && !eq[3]) {
-                _log.error(opts, {
-                    error: new Error(
-                        'Bodies do not match for ' + method + ':' + uri +
-                        '\nEXPECTED\n' + JSON.stringify(callReq.body, null, 4) +
-                        '\nACTUAL\n' + JSON.stringify(opts.preparedBody, null, 4))
-                });
+                opts.error = new Error(
+                    'Bodies do not match for ' + method + ':' + uri +
+                    '\nEXPECTED\n' + JSON.stringify(callReq.body, null, 4) +
+                    '\nACTUAL\n' + JSON.stringify(opts.preparedBody, null, 4));
+                if (_eventHandlers && _eventHandlers.error) {
+                    _eventHandlers.error(opts);
+                }
             }
 
             return eq[0] && eq[1] && eq[2] && eq[3];
@@ -240,11 +239,19 @@ class Vhttp {
     _sendReal(opts) {
         return request(opts)
             .then(function (data) {
-                _log.sent(opts);
+                if (_eventHandlers && _eventHandlers.sent) {
+                    opts.duration = Date.now() - opts.startedAt;
+                    opts.responseBody = data;
+                    _eventHandlers.sent(opts);
+                }
                 return data;
             })
             .catch(function (err) {
-                _log.error(opts, err);
+                if (_eventHandlers && _eventHandlers.error) {
+                    opts.duration = Date.now() - opts.startedAt;
+                    opts.error = err.error || err;
+                    _eventHandlers.error(opts);
+                }
                 throw err;
             });
     }
@@ -254,7 +261,11 @@ class Vhttp {
 
         if (!call) {
             let err = new Error('No virtual ' + this.virtual + ' call found for ' + opts.method + ':' + opts.uri);
-            _log.error(opts, { error: err });
+            if (_eventHandlers && _eventHandlers.error) {
+                opts.duration = Date.now() - opts.startedAt;
+                opts.error = err;
+                _eventHandlers.error(opts);
+            }
             return Promise.reject(err);
         }
 
@@ -269,7 +280,11 @@ class Vhttp {
             return Promise
                 .delay(delay)
                 .then(function () {
-                    _log.sent(opts);
+                    if (_eventHandlers && _eventHandlers.sent) {
+                        opts.duration = Date.now() - opts.startedAt;
+                        opts.responseBody = responseBody;
+                        _eventHandlers.sent(opts);
+                    }
                     return responseBody;
                 });
         }
@@ -277,15 +292,20 @@ class Vhttp {
         return Promise
             .delay(delay)
             .then(function () {
-                _log.error(opts, { error: responseBody });
+                if (_eventHandlers && _eventHandlers.error) {
+                    opts.duration = Date.now() - opts.startedAt;
+                    opts.error = responseBody;
+                    _eventHandlers.error(opts);
+                }
                 return Promise.reject({ error: responseBody });
             });
 
     }
 
     send(opts) {
-        opts = _.cloneDeep(opts);
-        opts.timestamp = Date.now();
+        if (_eventHandlers) {
+            opts.startedAt = Date.now();
+        }
 
         let self = this,
             virtual = this.virtual,
@@ -297,7 +317,10 @@ class Vhttp {
                 return Promise.join(prepareUriObj(opts), prepareBody(opts), function (uriObj, body) {
                     if (self.virtual && !self.scenario) {
                         let err = new Error('No virtual ' + virtual + ' scenario found for ' + method + ':' + uri);
-                        _log.error(opts, { error: err });
+                        if (_eventHandlers && _eventHandlers.error) {
+                            opts.error = err;
+                            _eventHandlers.error(opts);
+                        }
                         throw err;
                     }
 
@@ -305,8 +328,9 @@ class Vhttp {
                     opts.qs = uriObj.qs;
                     opts.preparedBody = body;
                     opts.virtual = virtual;
-
-                    _log.send(opts);
+                    if (_eventHandlers && _eventHandlers.send) {
+                        _eventHandlers.send(opts);
+                    }
 
                     return self.scenario
                         ? self._sendVirtual(opts)
@@ -316,7 +340,12 @@ class Vhttp {
     }
 
     done() {
-        var notCalled = _.filter(this.scenario, function (o) { return !o._called; });
+        if (!this.virtual || !this.scenario) {
+            return;
+        }
+        var notCalled = _.filter(this.scenario, function (o) {
+            return !o._called;
+        });
 
         if (notCalled.length > 0) {
             let callErrors = _.map(notCalled, 'key');
@@ -326,9 +355,14 @@ class Vhttp {
 
     static configure(opts) {
         _root = path.resolve(opts.root || _root);
-        if (opts.quiet) _log = _quietLog;
-        if (opts.log) _log = _.assign({}, _defaultLog, opts.log);
-        return this.register(opts.scenarios);
+        // Use assign for _eventHandlers so that subsequent calls to config can partially override handlers
+        // for instance one config may set opts.verbose = true, followed by next config includes an eventHandlers
+        // that only includes an error handler.
+        if (opts.verbose) _eventHandlers = _.assign(_eventHandlers, _verboseHandlers);
+        if (opts.eventHandlers || opts.log) {
+            _eventHandlers = _.assign(_eventHandlers, opts.log, opts.eventHandlers);
+        }
+        if (opts.scenarios) this.register(opts.scenarios);
     }
 
     static register(scenarios) {
