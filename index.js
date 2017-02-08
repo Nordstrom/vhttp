@@ -157,7 +157,7 @@ function prepareUriObj(opts) {
     if (queryIndex !== -1) {
         let uriQuery = querystring.parse(opts.uri.slice(queryIndex + 1));
         return Promise.resolve({
-            qs: opts.qs ? _.assign(opts.qs, uriQuery) : uriQuery,
+            qs: opts.qs ? _.assign(opts.qs, uriQuery) : _.assign({}, uriQuery),
             uri: opts.uri.slice(0, queryIndex)
         });
     } else {
