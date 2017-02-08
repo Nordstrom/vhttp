@@ -79,6 +79,15 @@ before(function () {
         scenario5: {
             'call1:1': {
                 method: 'get',
+                uri: 'http://test.url/path',
+                qs: {
+                    first: 'firstval'
+                }
+            }
+        },
+        scenario6: {
+            'call1:1': {
+                method: 'get',
                 uri: 'http://test.url/path2?first=firstval',
                 qs: {
                     second: 'secondval'
@@ -284,8 +293,31 @@ it('matches query strings', function () {
         });
 });
 
-it('combines uri and query strings passed as options', function () {
+it('matches result of parsing querystring with qs object', function () {
     return new Vhttp('scenario5')
+        .get('http://test.url/path?first=firstval')
+        .then(function (data) {
+            data.should.eql({
+                name: 'call1',
+                param: 'real-param'
+            });
+        });
+});
+
+it('can parse multiple query strings from url', function () {
+    return new Vhttp('scenario6')
+        .get('http://test.url/path2?second=secondval&first=firstval')
+        .then(function (data) {
+            data.should.eql({
+                name: 'call1',
+                param: 'real-param'
+            });
+        });
+});
+
+
+it('combines uri and query strings passed as options', function () {
+    return new Vhttp('scenario6')
         .get('http://test.url/path2?second=secondval', { qs: { first: 'firstval' } })
         .then(function (data) {
             data.should.eql({
@@ -296,13 +328,13 @@ it('combines uri and query strings passed as options', function () {
 });
 
 it('errs on missing query param', function () {
-    return new Vhttp('scenario5')
+    return new Vhttp('scenario6')
         .get('http://test.url/path2', { qs: { first: 'firstval' } })
         .then(function () {
             throw new Error('Error not thrown');
         })
         .catch(function (err) {
-            err.should.eql(new Error('No virtual scenario5 call found for GET:http://test.url/path2'));
+            err.should.eql(new Error('No virtual scenario6 call found for GET:http://test.url/path2'));
         });
 });
 
