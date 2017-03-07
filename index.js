@@ -250,6 +250,7 @@ class Vhttp {
                 if (_eventHandlers && _eventHandlers.error) {
                     opts.duration = Date.now() - opts.startedAt;
                     opts.error = err.error || err;
+                    opts.statusCode = err.response && err.response.statusCode;
                     _eventHandlers.error(opts);
                 }
                 throw err;
