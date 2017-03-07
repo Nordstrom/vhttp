@@ -1,6 +1,6 @@
 {
   "name": "vhttp",
-  "version": "0.13.1",
+  "version": "0.14.0",
   "description": "Promise based Node.js HTTP/HTTPS client with optional virtualization.",
   "main": "index.js",
   "scripts": {
