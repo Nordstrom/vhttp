@@ -34,7 +34,7 @@ var _ = require('lodash'),
     },
     // _eventHandlers = _verbosetHandlers,
     _root = path.resolve(__dirname + '/virtual'),
-    _request,
+    _request = request,
     _scenarios = {},
     _eventHandlers;
 
