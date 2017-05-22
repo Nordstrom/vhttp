@@ -34,6 +34,7 @@ var _ = require('lodash'),
     },
     // _eventHandlers = _verbosetHandlers,
     _root = path.resolve(__dirname + '/virtual'),
+    _request = request,
     _scenarios = {},
     _eventHandlers;
 
@@ -237,7 +238,7 @@ class Vhttp {
     }
 
     _sendReal(opts) {
-        return request(opts)
+        return _request(opts)
             .then(function (data) {
                 if (_eventHandlers && _eventHandlers.sent) {
                     opts.duration = Date.now() - opts.startedAt;
@@ -356,6 +357,7 @@ class Vhttp {
 
     static configure(opts) {
         _root = path.resolve(opts.root || _root);
+        _request = opts.request || request;
         // Use assign for _eventHandlers so that subsequent calls to config can partially override handlers
         // for instance one config may set opts.verbose = true, followed by next config includes an eventHandlers
         // that only includes an error handler.
@@ -377,6 +379,7 @@ class Vhttp {
 
     static reset() {
         _scenarios = {};
+        _request = request;
     }
 }
 
