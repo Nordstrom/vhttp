@@ -357,7 +357,7 @@ it('returns timeout error when request exceeds timeout', function() {
         })
         .catch(function(err) {
             console.log()
-            err.error.should.eql('error-response');
+            err.error.should.eql({ name: 'error-response' });
             scope.done();
         });
 });
