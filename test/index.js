@@ -338,3 +338,26 @@ it('errs on missing query param', function () {
         });
 });
 
+it('returns timeout error when request exceeds timeout', function() {
+    Vhttp.reset();
+    Vhttp.configure({
+        root: 'test/virtual',
+        verbose: true,
+        timeout: 50
+    });
+
+    var scope = nock('http://www.google.com')
+        .get('/')
+        .delay(60)
+        .reply(200);
+
+    return new Vhttp()
+        .get('http://www.google.com', { json: true })
+        .then(function() {
+            throw new Error('Error not thrown');
+        })
+        .catch(function(err) {
+            err.error.code.should.eql('ETIMEDOUT');
+            scope.done();
+        });
+});
