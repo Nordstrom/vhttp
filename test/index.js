@@ -315,7 +315,6 @@ it('can parse multiple query strings from url', function () {
         });
 });
 
-
 it('combines uri and query strings passed as options', function () {
     return new Vhttp('scenario6')
         .get('http://test.url/path2?second=secondval', { qs: { first: 'firstval' } })
@@ -346,18 +345,19 @@ it('returns timeout error when request exceeds timeout', function() {
         timeout: 50
     });
 
-    var scope = nock('http://www.google.com')
-        .get('/')
+    var scope = nock('http://test-real.url:80')
+        .get('/path')
         .delay(500)
-        .reply(200);
+        .reply(400, { name: 'error-response' });
 
     return new Vhttp()
-        .get('http://www.google.com', { json: true })
+        .get('http://test-real.url/path', { json: true })
         .then(function() {
             throw new Error('Error not thrown');
         })
         .catch(function(err) {
-            err.error.code.should.eql('ETIMEDOUT');
+            console.log()
+            err.error.should.eql('error-response');
             scope.done();
         });
 });
