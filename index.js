@@ -17,6 +17,7 @@ var _ = require('lodash'),
     url = require('url'),
     sub = require('substituter'),
     eql = require('smart-eql'),
+    _timeout = 60000,
     request = require('request-promise'),
     _verboseHandlers = {
         send: function (opts) {
@@ -238,6 +239,7 @@ class Vhttp {
     }
 
     _sendReal(opts) {
+        opts.timeout = opts.timeout || _timeout;
         return _request(opts)
             .then(function (data) {
                 if (_eventHandlers && _eventHandlers.sent) {
@@ -357,6 +359,7 @@ class Vhttp {
 
     static configure(opts) {
         _root = path.resolve(opts.root || _root);
+        _timeout = opts.timeout || _timeout;
         _request = opts.request || request;
         // Use assign for _eventHandlers so that subsequent calls to config can partially override handlers
         // for instance one config may set opts.verbose = true, followed by next config includes an eventHandlers

@@ -315,7 +315,6 @@ it('can parse multiple query strings from url', function () {
         });
 });
 
-
 it('combines uri and query strings passed as options', function () {
     return new Vhttp('scenario6')
         .get('http://test.url/path2?second=secondval', { qs: { first: 'firstval' } })
@@ -338,3 +337,27 @@ it('errs on missing query param', function () {
         });
 });
 
+it('returns timeout error when request exceeds timeout', function() {
+    Vhttp.reset();
+    Vhttp.configure({
+        root: 'test/virtual',
+        verbose: true,
+        timeout: 50
+    });
+
+    var scope = nock('http://test-real.url:80')
+        .get('/path')
+        .delay(500)
+        .reply(400, { name: 'error-response' });
+
+    return new Vhttp()
+        .get('http://test-real.url/path', { json: true })
+        .then(function() {
+            throw new Error('Error not thrown');
+        })
+        .catch(function(err) {
+            console.log()
+            err.error.should.eql({ name: 'error-response' });
+            scope.done();
+        });
+});
