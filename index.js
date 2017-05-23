@@ -239,7 +239,7 @@ class Vhttp {
     }
 
     _sendReal(opts) {
-        opts.timeout = _timeout;
+        opts.timeout = opts.timeout || _timeout;
         return _request(opts)
             .then(function (data) {
                 if (_eventHandlers && _eventHandlers.sent) {
