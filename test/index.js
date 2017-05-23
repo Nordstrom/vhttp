@@ -348,7 +348,7 @@ it('returns timeout error when request exceeds timeout', function() {
 
     var scope = nock('http://www.google.com')
         .get('/')
-        .delay(60)
+        .delay(500)
         .reply(200);
 
     return new Vhttp()
