@@ -1,6 +1,6 @@
 'use strict';
 
-var should = require('should'),
+let should = require('should'),
     fs = require('fs'),
     nock = require('nock'),
     Vhttp = require('..'),
@@ -93,6 +93,15 @@ before(function () {
                     second: 'secondval'
                 }
             }
+        },
+        scenario7: {
+            'call1:1': {
+                method: 'get',
+                uri: 'http://test.url/path',
+                headers: {
+                    first: 'firstval'
+                }
+            }
         }
     });
 });
@@ -111,7 +120,7 @@ it('virtualizes get json with data', function () {
 it('virtualizes post json without data', function () {
     //noinspection JSUnresolvedFunction
     return new Vhttp('scenario1')
-        .post('http://test.url/path2', { body: { name: 'call2', param: 'request-param' } })
+        .post('http://test.url/path2', {body: {name: 'call2', param: 'request-param'}})
         .then(function (data) {
             data.should.eql({
                 name: 'call2',
@@ -127,14 +136,14 @@ it('virtualizes get json with error', function () {
             throw new Error('Invalid data: ' + data);
         })
         .catch(function (err) {
-            err.should.eql({ error: { name: 'call1', param: 'err-param' } });
+            err.should.eql({error: {name: 'call1', param: 'err-param'}});
         });
 });
 
 it('virtualizes put xml with data', function () {
     //noinspection JSUnresolvedFunction
     return new Vhttp('scenario1')
-        .put('http://test.url/path3', { body: '<request><name>call3</name><param>call3-request-param</param></request>' })
+        .put('http://test.url/path3', {body: '<request><name>call3</name><param>call3-request-param</param></request>'})
         .then(function (data) {
             data.should.equal('<response>\n    <name>call3</name>\n    <param>call3-response-param</param>\n</response>');
         });
@@ -143,7 +152,7 @@ it('virtualizes put xml with data', function () {
 it('virtualizes post json with regex', function () {
     //noinspection JSUnresolvedFunction
     return new Vhttp('scenario1')
-        .post('http://test.url/path4', { body: { name: 'call4', param: 'call4 request param' } })
+        .post('http://test.url/path4', {body: {name: 'call4', param: 'call4 request param'}})
         .then(function (data) {
             data.should.eql({
                 name: 'call4',
@@ -155,7 +164,7 @@ it('virtualizes post json with regex', function () {
 it('virtualizes post xml with regex', function () {
     //noinspection JSUnresolvedFunction
     return new Vhttp('scenario2')
-        .post('http://test.url/path3', { body: '<request><name>call3</name><param>call3 regex request param</param></request>' })
+        .post('http://test.url/path3', {body: '<request><name>call3</name><param>call3 regex request param</param></request>'})
         .then(function (data) {
             data.should.equal('<response>\n    <name>call3</name>\n    <param>call3-response-param</param>\n</response>');
         });
@@ -164,7 +173,7 @@ it('virtualizes post xml with regex', function () {
 it('virtualizes post json with data functions', function () {
     //noinspection JSUnresolvedFunction
     return new Vhttp('scenario1')
-        .post('http://test.url/path5', { body: { name: 'call5', param: 'call5 request param' } })
+        .post('http://test.url/path5', {body: {name: 'call5', param: 'call5 request param'}})
         .then(function (data) {
             data.should.eql({
                 name: 'call5',
@@ -176,7 +185,7 @@ it('virtualizes post json with data functions', function () {
 it('virtualizes post xml with data functions', function () {
     //noinspection JSUnresolvedFunction
     return new Vhttp('scenario1')
-        .post('http://test.url/path7', { body: '<request><name>call7</name><param>call7 request param</param></request>' })
+        .post('http://test.url/path7', {body: '<request><name>call7</name><param>call7 request param</param></request>'})
         .then(function (data) {
             data.should.equal('<response>\n    <name>call7</name>\n    <param>call7-response-param</param>\n</response>');
         });
@@ -185,7 +194,7 @@ it('virtualizes post xml with data functions', function () {
 it('virtualizes post xml with no data', function () {
     //noinspection JSUnresolvedFunction
     return new Vhttp('scenario1')
-        .post('http://test.url/path6', { body: '<request><name>call6</name><param>call6 request param</param></request>' })
+        .post('http://test.url/path6', {body: '<request><name>call6</name><param>call6 request param</param></request>'})
         .then(function (data) {
             data.should.equal('<response>\n    <name>call6</name>\n    <param>call6-response-param</param>\n</response>');
         });
@@ -216,7 +225,7 @@ it('errs on invalid path', function () {
 it('errs on invalid body', function () {
     //noinspection JSUnresolvedFunction
     return new Vhttp('scenario1')
-        .post('http://test.url/path6', { body: '<request><name>callX</name><param>call6 request param</param></request>' })
+        .post('http://test.url/path6', {body: '<request><name>callX</name><param>call6 request param</param></request>'})
         .then(function () {
             throw new Error('Error not thrown');
         })
@@ -227,32 +236,32 @@ it('errs on invalid body', function () {
 
 it('posts to real endpoint with success', function () {
     var scope = nock('http://test-real.url:80')
-        .post('/path', { name: 'real-request' })
-        .reply(200, { name: 'real-response' });
+        .post('/path', {name: 'real-request'})
+        .reply(200, {name: 'real-response'});
 
     //noinspection JSUnresolvedFunction
     return new Vhttp()
-        .post('http://test-real.url/path', { body: { name: 'real-request' }, json: true })
+        .post('http://test-real.url/path', {body: {name: 'real-request'}, json: true})
         .then(function (data) {
-            data.should.eql({ name: 'real-response' });
+            data.should.eql({name: 'real-response'});
             scope.done();
         })
 });
 
 it('posts to real endpoint with error', function () {
-    var scope = nock('http://test-real.url:80')
+    let scope = nock('http://test-real.url:80')
     // .log(console.log)
-        .post('/path', { name: 'real-request' })
-        .reply(400, { name: 'error-response' });
+        .post('/path', {name: 'real-request'})
+        .reply(400, {name: 'error-response'});
 
     //noinspection JSUnresolvedFunction
     return new Vhttp()
-        .post('http://test-real.url/path', { body: { name: 'real-request' }, json: true })
+        .post('http://test-real.url/path', {body: {name: 'real-request'}, json: true})
         .then(function () {
             throw new Error('Error not thrown');
         })
         .catch(function (err) {
-            err.error.should.eql({ name: 'error-response' });
+            err.error.should.eql({name: 'error-response'});
             scope.done();
         });
 });
@@ -263,8 +272,8 @@ it('checks that all calls were made', function () {
     //noinspection JSUnresolvedFunction
     return Promise.all([
         vhttp.get('http://test.url/path'),
-        vhttp.post('http://test.url/path2', { body: { name: 'call2', param: 'request-param' } }),
-        vhttp.put('http://test.url/path3', { body: '<request><name>call3</name><param>call3-request-param</param></request>' })
+        vhttp.post('http://test.url/path2', {body: {name: 'call2', param: 'request-param'}}),
+        vhttp.put('http://test.url/path3', {body: '<request><name>call3</name><param>call3-request-param</param></request>'})
     ])
         .then(function () {
             vhttp.done();
@@ -277,8 +286,10 @@ it('errs when all calls not made', function () {
     //noinspection JSUnresolvedFunction
     return vhttp.get('http://test.url/path')
         .then(function () {
-            (function () {vhttp.done();}).should.throw(Error,
-                { message: 'The following calls for scenario scenario3 were not made: call2:1, call3:1' });
+            (function () {
+                vhttp.done();
+            }).should.throw(Error,
+                {message: 'The following calls for scenario scenario3 were not made: call2:1, call3:1'});
         });
 });
 
@@ -317,7 +328,7 @@ it('can parse multiple query strings from url', function () {
 
 it('combines uri and query strings passed as options', function () {
     return new Vhttp('scenario6')
-        .get('http://test.url/path2?second=secondval', { qs: { first: 'firstval' } })
+        .get('http://test.url/path2?second=secondval', {qs: {first: 'firstval'}})
         .then(function (data) {
             data.should.eql({
                 name: 'call1',
@@ -328,7 +339,7 @@ it('combines uri and query strings passed as options', function () {
 
 it('errs on missing query param', function () {
     return new Vhttp('scenario6')
-        .get('http://test.url/path2', { qs: { first: 'firstval' } })
+        .get('http://test.url/path2', {qs: {first: 'firstval'}})
         .then(function () {
             throw new Error('Error not thrown');
         })
@@ -337,7 +348,33 @@ it('errs on missing query param', function () {
         });
 });
 
-it('returns timeout error when request exceeds timeout', function() {
+it('matches header values', function () {
+    return new Vhttp('scenario7')
+        .get('http://test.url/path', {
+            headers: {
+                first: 'firstval'
+            }
+        })
+        .then(function (data) {
+            data.should.eql({
+                name: 'call1',
+                param: 'real-param'
+            });
+        });
+});
+
+it('errs on missing headers', function () {
+    return new Vhttp('scenario6')
+        .get('http://test.url/path2', {headers: {first: 'firstval'}})
+        .then(function () {
+            throw new Error('Error not thrown');
+        })
+        .catch(function (err) {
+            err.should.eql(new Error('No virtual scenario6 call found for GET:http://test.url/path2'));
+        });
+});
+
+it('returns timeout error when request exceeds timeout', function () {
     Vhttp.reset();
     Vhttp.configure({
         root: 'test/virtual',
@@ -345,19 +382,19 @@ it('returns timeout error when request exceeds timeout', function() {
         timeout: 50
     });
 
-    var scope = nock('http://test-real.url:80')
+    let scope = nock('http://test-real.url:80')
         .get('/path')
         .delay(500)
-        .reply(400, { name: 'error-response' });
+        .reply(400, {name: 'error-response'});
 
     return new Vhttp()
-        .get('http://test-real.url/path', { json: true })
-        .then(function() {
+        .get('http://test-real.url/path', {json: true})
+        .then(function () {
             throw new Error('Error not thrown');
         })
-        .catch(function(err) {
+        .catch(function (err) {
             console.log()
-            err.error.should.eql({ name: 'error-response' });
+            err.error.should.eql({name: 'error-response'});
             scope.done();
         });
 });
