@@ -204,7 +204,7 @@ class Vhttp {
                 (method === callReq.method),
                 eql(uri, callReq.uri),
                 eql(qs, callReq.qs),
-                eql(headers, callReq.headers),
+                callReq.headers ? eql(headers, callReq.headers) : true,
                 eql(opts.preparedBody, callReq.body)
             ];
 
