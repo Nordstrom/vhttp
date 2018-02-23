@@ -156,7 +156,7 @@ function prepareBody(opts) {
 function prepareUriObj(opts) {
     // if uri is a regexp, this will not support qs params since ? marks an optional character in regexp
     let queryIndex = opts.uri instanceof RegExp ? -1 : opts.uri.indexOf('?');
-    if (queryIndex !== -1) {
+    if (queryIndex !== -1 && !opts.qsString) {
         let uriQuery = querystring.parse(opts.uri.slice(queryIndex + 1));
         return Promise.resolve({
             qs: _.assign({}, opts.qs, uriQuery),
