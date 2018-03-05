@@ -57,7 +57,8 @@ function initCall(call) {
         request = {
             uri: value.uri,
             method: value.method,
-            qs: value.qs
+            qs: value.qs,
+            headers: value.headers
         },
         response = {
             status: value.status,
@@ -119,8 +120,8 @@ function renderBody(obj, raw) {
                 return raw
                     ? sub(xml, _.isFunction(obj.data) ? obj.data() : obj.data)
                     : fromXml(xml).then(function (xmlObj) {
-                    return sub(xmlObj, _.isFunction(obj.data) ? obj.data() : obj.data);
-                });
+                        return sub(xmlObj, _.isFunction(obj.data) ? obj.data() : obj.data);
+                    });
             }
         );
     }
@@ -139,7 +140,7 @@ function render(scenario) {
         ]).then(function (results) {
             return _.merge({}, item, {
                 value: {
-                    request: { uri: results[2].uri, qs: results[2].qs, body: results[0] },
+                    request: { uri: results[2].uri, qs: results[2].qs, headers:results[2].headers, body: results[0] },
                     response: { body: results[1] }
                 }
             });
@@ -186,6 +187,7 @@ class Vhttp {
             let call = item.value,
                 callReq = call.request,
                 qs = opts.qs,
+                headers = opts.headers,
                 method = _.trim(opts.method.toUpperCase()),
                 uri = _.trim(opts.uri.toLowerCase());
 
@@ -202,6 +204,7 @@ class Vhttp {
                 (method === callReq.method),
                 eql(uri, callReq.uri),
                 eql(qs, callReq.qs),
+                callReq.headers ? eql(headers, callReq.headers) : true,
                 eql(opts.preparedBody, callReq.body)
             ];
 
@@ -210,7 +213,8 @@ class Vhttp {
                 ' - method:' + eq[0] +
                 '; uri:' + eq[1] +
                 '; qs:' + eq[2] +
-                '; body:' + eq[3];
+                '; headers:' + eq[3] +
+                '; body:' + eq[4];
             if (_eventHandlers && _eventHandlers.debug) {
                 _eventHandlers.debug(opts);
             }
@@ -226,6 +230,15 @@ class Vhttp {
             }
             if (eq[0] && eq[1] && !eq[3]) {
                 opts.error = new Error(
+                    'Header values do not match for ' + method + ':' + uri +
+                    '\nEXPECTED\n' + JSON.stringify(callReq.headers, null, 4) +
+                    '\nACTUAL\n' + JSON.stringify(headers, null, 4));
+                if (_eventHandlers && _eventHandlers.error) {
+                    _eventHandlers.error(opts);
+                }
+            }
+            if (eq[0] && eq[1] && !eq[4]) {
+                opts.error = new Error(
                     'Bodies do not match for ' + method + ':' + uri +
                     '\nEXPECTED\n' + JSON.stringify(callReq.body, null, 4) +
                     '\nACTUAL\n' + JSON.stringify(opts.preparedBody, null, 4));
@@ -234,7 +247,7 @@ class Vhttp {
                 }
             }
 
-            return eq[0] && eq[1] && eq[2] && eq[3];
+            return eq[0] && eq[1] && eq[2] && eq[3] && eq[4];
         });
     }
 
